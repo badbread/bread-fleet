@@ -1,0 +1,27 @@
+# Secrets: never commit
+fleet-server/.env
+fleet-server/cloudflared/*.json
+fleet-server/cloudflared/cert.pem
+
+# Runtime data: bind-mounted service state
+fleet-server/data/
+
+# Editor / OS cruft
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Claude Code and oh-my-claudecode session state: not part of the project
+.claude/
+.omc/
+
+# macOS resource forks on NAS SMB shares
+.AppleDouble
+._*
+
+# Backup files
+*.bak
+*.orig
+*~

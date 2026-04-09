@@ -1,0 +1,47 @@
+# yamllint configuration for bread-fleet.
+#
+# Intentionally looser than yamllint's default so the CI check fails only
+# on real problems and not on stylistic preferences. The goal is to catch
+# schema errors and typos, not to enforce a particular line-length policy.
+
+extends: default
+
+rules:
+  # Compose files and GitOps YAML often have long URLs, long env var names,
+  # and multi-value keys. 140 is enough for 99% of the reasonable cases.
+  line-length:
+    max: 140
+    level: warning
+
+  # Don't require `---` at the start of every doc. Compose and most
+  # fleetctl YAML doesn't use it.
+  document-start: disable
+
+  # Compose uses keys like `on:` which yamllint's truthy rule would
+  # flag as booleans. Disable the check on keys specifically.
+  truthy:
+    check-keys: false
+
+  # Indentation is the one thing worth being strict about because it is
+  # how humans tell structure apart. Enforce 2 spaces and consistent
+  # sequence indentation.
+  indentation:
+    spaces: 2
+    indent-sequences: consistent
+
+  # Comments need at least one space after the `#` and before the content
+  # they follow. Already how the compose file is written.
+  comments:
+    min-spaces-from-content: 1
+    require-starting-space: true
+
+  # Trailing spaces are a nuisance in diffs. Fail on them.
+  trailing-spaces: enable
+
+  # Empty lines at EOF: require exactly one.
+  new-line-at-end-of-file: enable
+
+ignore: |
+  .git/
+  .claude/
+  .omc/
