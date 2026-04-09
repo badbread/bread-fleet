@@ -46,7 +46,7 @@ already cover.
 
 | Module | Purpose |
 |---|---|
-| **Compliance Troubleshooter** | React + Claude API tool that translates Fleet policy failures into plain English for support staff, with one-click remediation paths and an audit log. Reduces ticket escalation from support to engineering. *(scaffolding in progress)* |
+| **Compliance Troubleshooter** | React + FastAPI + Claude API tool that translates Fleet policy failures into plain English for support staff, with one-click remediation paths and an audit log. Static fallback dict lets it run without an API key. See [`compliance-troubleshooter/`](compliance-troubleshooter/) and [ADR-0005](docs/adr/0005-compliance-troubleshooter-design.md). |
 | **Zero-Day Pipeline** | Service that polls CISA KEV, parses indicators of compromise, generates matching osquery SQL, deploys it to Fleet as a policy, and fires a webhook alert when any host matches. Closes the KEV-vs-NVD lag. *(planned)* |
 | **CIS demo tooling** | `break.sh` / `restore.sh` pair for deliberately failing 11 CIS Ubuntu controls on a throwaway test host. Used for regression-testing the policy set and live-demoing the compliance dashboard. Three-layer safety gate prevents accidental runs. |
 | **GitOps deployment** | Single-file `apply.sh` that scp's the version-controlled YAML to the Fleet host, sources runtime secrets from a gitignored `.env`, and runs `fleetctl gitops`. Templated env-var substitution keeps secrets out of the repo. |
@@ -100,6 +100,7 @@ ADRs.
 | [0002](docs/adr/0002-mysql-redis-on-local-volumes.md) | MySQL and Redis state on local Docker volumes, not NFS, due to root_squash incompatibility | Accepted |
 | [0003](docs/adr/0003-lan-only-ingress.md) | LAN-only ingress with documented at-scale path-restricted Cloudflare Tunnel design | Accepted |
 | [0004](docs/adr/0004-fleet-free-single-tenant-design.md) | Single-tenant GitOps shape on Fleet Free, with reference-teams kept as Premium-design documentation | Accepted |
+| [0005](docs/adr/0005-compliance-troubleshooter-design.md) | Compliance Troubleshooter design (FastAPI + React + Claude API, static fallback for keyless demo, per-policy remediation registry) | Accepted |
 
 Each ADR follows a standard template with explicit `Alternatives Considered`,
 `Tradeoffs`, and `At Enterprise Scale` sections.

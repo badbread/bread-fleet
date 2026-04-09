@@ -1,0 +1,82 @@
+# ============================================================================
+# Compliance Troubleshooter Compose stack. Runs alongside the existing
+# fleet-server stack but on its own bridge network and its own ports.
+#
+# Services:
+#   backend   - FastAPI app, exposes the troubleshooter REST API
+#   frontend  - nginx serving the Vite-built React bundle
+#
+# The backend talks to Fleet's REST API directly using FLEET_API_URL +
+# FLEET_API_TOKEN from .env. The frontend talks to the backend over CORS.
+# Audit log is on a named volume so it survives container recreation.
+# ============================================================================
+
+services:
+
+  # --------------------------------------------------------------------------
+  # Backend: FastAPI + httpx + the anthropic SDK.
+  # The container is small (python:3.12-slim) and the only state it manages
+  # is the audit log volume. Stateless otherwise.
+  # --------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+    container_name: compliance-troubleshooter-backend
+    restart: unless-stopped
+    environment:
+      FLEET_API_URL: ${FLEET_API_URL}
+      FLEET_API_TOKEN: ${FLEET_API_TOKEN}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-5}
+      AUDIT_LOG_PATH: ${AUDIT_LOG_PATH:-/data/troubleshooter.jsonl}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+    volumes:
+      # Audit log persistence. Named volume so it survives container
+      # recreation; the at-scale design moves this to Postgres.
+      - troubleshooter-audit:/data
+    ports:
+      # Bound to localhost only by default. The frontend reaches it
+      # through the operator's browser, so a public bind is unnecessary.
+      - "127.0.0.1:8088:8088"
+    networks:
+      - troubleshooter-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8088/healthz').read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # --------------------------------------------------------------------------
+  # Frontend: nginx serving the React bundle.
+  # Built from the frontend Dockerfile which runs `vite build` and then
+  # copies the static output into a stripped-down nginx image.
+  # --------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_BACKEND_URL: ${VITE_BACKEND_URL:-http://localhost:8088}
+    container_name: compliance-troubleshooter-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5173:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - troubleshooter-net
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  troubleshooter-net:
+    driver: bridge
+    name: troubleshooter-net
+
+volumes:
+  troubleshooter-audit:
+    name: troubleshooter-audit

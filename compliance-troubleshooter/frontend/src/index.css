@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Body-level type tuning. The design uses a slightly tighter
+   letter-spacing on headings and a comfortable 1.5 line-height on
+   body text, matching the visual feel of a modern knowledge tool. */
+@layer base {
+  body {
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3 {
+    letter-spacing: -0.01em;
+  }
+}
+
+/* Severity badge component class. Pairs a saturated foreground with
+   a pale tinted background. */
+@layer components {
+  .severity-badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold tracking-wide uppercase;
+  }
+  .severity-badge-low {
+    color: theme("colors.severity.low");
+    background-color: theme("colors.severity.low-bg");
+  }
+  .severity-badge-medium {
+    color: theme("colors.severity.medium");
+    background-color: theme("colors.severity.medium-bg");
+  }
+  .severity-badge-high {
+    color: theme("colors.severity.high");
+    background-color: theme("colors.severity.high-bg");
+  }
+  .severity-badge-critical {
+    color: theme("colors.severity.critical");
+    background-color: theme("colors.severity.critical-bg");
+  }
+
+  /* Card surface used by every panel. Subtle warm border, no shadow,
+     no heavy elevation. Hover state is a faint background tint. */
+  .card {
+    @apply rounded-lg bg-neutral-0 border border-neutral-150;
+  }
+
+  /* Primary action button: near-black background, white text. */
+  .btn-primary {
+    @apply inline-flex items-center px-3.5 py-1.5 rounded-md text-sm font-medium bg-neutral-700 text-neutral-0 hover:bg-neutral-800 disabled:bg-neutral-200 disabled:text-neutral-500 disabled:cursor-not-allowed transition-colors;
+  }
+
+  /* Secondary button: bordered, white background. */
+  .btn-secondary {
+    @apply inline-flex items-center px-3.5 py-1.5 rounded-md text-sm font-medium bg-neutral-0 text-neutral-700 border border-neutral-200 hover:bg-neutral-50 disabled:bg-neutral-50 disabled:text-neutral-300 disabled:cursor-not-allowed transition-colors;
+  }
+}

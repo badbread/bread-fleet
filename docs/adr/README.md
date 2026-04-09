@@ -13,6 +13,7 @@ stays in the tree so the reasoning history is preserved.
 | [0002](0002-mysql-redis-on-local-volumes.md) | MySQL and Redis on local Docker volumes, not NFS bind mounts (NFS root_squash vs container chown) | Accepted |
 | [0003](0003-lan-only-ingress.md) | LAN-only ingress, with documented at-scale path-restricted Cloudflare Tunnel design | Accepted |
 | [0004](0004-fleet-free-single-tenant-design.md) | Single-tenant GitOps shape on Fleet Free, reference-teams as Premium-design documentation | Accepted |
+| [0005](0005-compliance-troubleshooter-design.md) | Compliance Troubleshooter design (FastAPI + React + Claude API translation, JSONL audit, per-policy remediation registry) | Accepted |
 
 ## Format
 
