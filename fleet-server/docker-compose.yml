@@ -1,0 +1,269 @@
+# ============================================================================
+# Fleet Device Management: Docker Compose stack
+# ----------------------------------------------------------------------------
+# Host:         an Ubuntu Server 24.04 LTS docker host
+# Runtime path: a runtime directory on the docker host (see the runbook)
+# Source path:  this repo's fleet-server/ directory (canonical copy)
+# Exposure:     LAN-accessible at http://<docker-host-ip>:8080. The
+#               cloudflared sidecar is profile-gated and not enabled by
+#               default. See docs/adr/0003-lan-only-ingress.md.
+# Data:         MySQL, Redis, and Fleet vuln feeds on LOCAL Docker named
+#               volumes (not NFS). Required because Synology NFS root_squash
+#               breaks the mysql/redis entrypoint chown.
+#               See docs/adr/0002-mysql-redis-on-local-volumes.md.
+#
+# Services:
+#   mysql       : Fleet's primary datastore (hosts, queries, policies, users)
+#   redis       : Live query pub/sub + caching layer
+#   fleet-init  : One-shot container that runs `fleet prepare db` to apply
+#                 schema migrations. Exits 0 on success. Required on first
+#                 boot and after every Fleet version bump.
+#   fleet       : The Fleet server itself. Listens on :8080 (plain HTTP).
+#                 Bound to 0.0.0.0:8080 on the host for LAN access. TLS
+#                 intentionally disabled; if the tunnel profile is ever
+#                 enabled, cloudflared terminates TLS at the Cloudflare edge.
+#   cloudflared : Cloudflare Tunnel daemon, profile-gated under the "tunnel"
+#                 compose profile. Not started by default. Enable with
+#                 `docker compose --profile tunnel up -d` once a tunnel
+#                 token is present in .env and the path-restricted public
+#                 hostnames are configured in the CF dashboard.
+#
+# Usage:
+#   docker compose up -d                      # base stack, LAN-only
+#   docker compose --profile tunnel up -d     # base stack + cloudflared
+# ============================================================================
+
+services:
+
+  # --------------------------------------------------------------------------
+  # MySQL 8.0: Fleet's primary relational store.
+  # Pinned at 8.0.x because Fleet does not yet support the auth plugin
+  # changes in 8.4. ADR-0001 covers the version pinning rationale and the
+  # upgrade gating story.
+  # --------------------------------------------------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: fleet-mysql
+    restart: unless-stopped
+    # Fleet requires these specific collation/charset settings. Without them
+    # certain migrations fail with "Specified key was too long" errors.
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --innodb-file-per-table=1
+    environment:
+      # Root password is only used for the initial bootstrap. Fleet connects
+      # as the unprivileged `fleet` user defined below.
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      # Named volume on the Docker host's local disk, NOT an NFS bind mount.
+      # ADR-0002 documents the full reasoning: Synology NFS root_squash
+      # blocks the mysql entrypoint's chown 999:999 /var/lib/mysql, the
+      # container fails to start, and the only clean fix is to keep the
+      # data off NFS entirely. Local storage is also faster and crash-safer
+      # for a relational store. Backups via scheduled mysqldump to off-host
+      # storage are a documented operational requirement, not implemented
+      # in the demonstration shape.
+      - fleet-mysql-data:/var/lib/mysql
+    networks:
+      - fleet-net
+    # Healthcheck gates the fleet-init and fleet services, they won't start
+    # until MySQL is actually accepting connections, not just port-open.
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  # --------------------------------------------------------------------------
+  # Redis 7: live query pub/sub and ephemeral caching layer.
+  # Fleet treats Redis as discardable, so a wipe on restart is acceptable
+  # in principle. AOF persistence is enabled anyway because live-query
+  # responses in flight when the container crashes are otherwise lost,
+  # and that data has investigation value for the next ten minutes.
+  # --------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: fleet-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      # Named volume, same reasoning as MySQL. See ADR-0002.
+      - fleet-redis-data:/data
+    networks:
+      - fleet-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # --------------------------------------------------------------------------
+  # fleet-init: one-shot schema migration runner.
+  # `fleet prepare db` is idempotent and safe to run on every compose up.
+  # The main fleet service uses depends_on with
+  # condition: service_completed_successfully so a migration failure
+  # surfaces as a loud, distinct error rather than as an unhealthy main
+  # container. Documented in ADR-0001 as the upgrade-gating pattern.
+  # --------------------------------------------------------------------------
+  fleet-init:
+    image: fleetdm/fleet:${FLEET_VERSION}
+    container_name: fleet-init
+    # `no` means it won't be restarted after exiting, this is correct for
+    # a one-shot migration. If migration fails, compose up will report it.
+    restart: "no"
+    command: fleet prepare db --no-prompt
+    environment:
+      FLEET_MYSQL_ADDRESS: mysql:3306
+      FLEET_MYSQL_DATABASE: ${MYSQL_DATABASE}
+      FLEET_MYSQL_USERNAME: ${MYSQL_USER}
+      FLEET_MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - fleet-net
+
+  # --------------------------------------------------------------------------
+  # fleet: the Fleet server itself.
+  # Serves the admin web UI, the REST API, the osquery TLS plugin
+  # endpoints, and the MDM endpoints, all on the same :8080 port. The
+  # single-port surface is what makes ADR-0003's path-restricted ingress
+  # design necessary at scale.
+  # --------------------------------------------------------------------------
+  fleet:
+    image: fleetdm/fleet:${FLEET_VERSION}
+    container_name: fleet
+    restart: unless-stopped
+    command: fleet serve
+    environment:
+      # ---- Datastore connections -----------------------------------------
+      FLEET_MYSQL_ADDRESS: mysql:3306
+      FLEET_MYSQL_DATABASE: ${MYSQL_DATABASE}
+      FLEET_MYSQL_USERNAME: ${MYSQL_USER}
+      FLEET_MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      FLEET_REDIS_ADDRESS: redis:6379
+
+      # ---- Server binding ------------------------------------------------
+      # Bind to all container interfaces. The host-side port mapping
+      # below decides what's actually reachable from outside the
+      # fleet-net bridge.
+      FLEET_SERVER_ADDRESS: 0.0.0.0:8080
+
+      # ---- TLS (intentionally off in this deployment) --------------------
+      # ADR-0003 documents the LAN-only ingress decision and why TLS is
+      # off here. At enterprise scale, TLS terminates at the Cloudflare
+      # edge via the path-restricted tunnel hostnames, not on Fleet
+      # itself, so this setting stays "false" even in the at-scale design.
+      FLEET_SERVER_TLS: "false"
+
+      # ---- Public URL ----------------------------------------------------
+      # The URL Fleet bakes into agent enrollment packages and invite
+      # email links. MUST be reachable from every enrolled host. For the
+      # current LAN-only deployment this is http://<docker-host-ip>:8080.
+      # When the tunnel profile is enabled, change to the public hostname.
+      FLEET_SERVER_URL: ${FLEET_SERVER_URL}
+
+      # ---- Logging -------------------------------------------------------
+      # JSON logs are easier to ship to Loki/Elastic later.
+      FLEET_LOGGING_JSON: "true"
+      FLEET_LOGGING_DEBUG: "false"
+
+      # ---- Auth ----------------------------------------------------------
+      # JWT signing key for session tokens. MUST be at least 32 chars.
+      # Rotation invalidates every existing admin session, so a real
+      # rotation procedure happens during a planned maintenance window
+      # with comms to the engineering team beforehand.
+      FLEET_AUTH_JWT_KEY: ${FLEET_JWT_KEY}
+
+      # ---- Vulnerability processing --------------------------------------
+      # Fleet downloads NVD/OVAL feeds to this path and uses them to match
+      # installed software on hosts against known CVEs. The directory is
+      # bind-mounted so the feed cache survives container restarts.
+      FLEET_VULNERABILITIES_DATABASES_PATH: /tmp/vulndbs
+    volumes:
+      # Named volume for NVD/OVAL feed cache. Regenerable (Fleet re-downloads
+      # on startup if missing) but persisting across restarts avoids ~200MB
+      # of repeat downloads every time the container is recreated.
+      - fleet-vulndbs:/tmp/vulndbs
+    # Host port binding. Fleet is reachable at http://<docker-host>:8080
+    # from any device on the trusted network. The perimeter firewall
+    # blocks inbound from WAN, so this is LAN-only, not internet-exposed.
+    #
+    # At enterprise scale, this binding goes away. Admin traffic goes
+    # through the managed ingress (path-restricted Cloudflare Tunnel +
+    # Cloudflare Access on admin paths) so every access hits the same
+    # SSO + audit path. ADR-0003 documents the at-scale design and the
+    # reasoning for why the LAN binding is acceptable in the current
+    # single-tenant deployment but not in production.
+    ports:
+      - "8080:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      fleet-init:
+        condition: service_completed_successfully
+    networks:
+      - fleet-net
+    healthcheck:
+      # /healthz is Fleet's unauthenticated liveness endpoint.
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # --------------------------------------------------------------------------
+  # cloudflared: Cloudflare Tunnel sidecar.
+  # Profile-gated. Not started by default. ADR-0003 documents both why
+  # the default deployment doesn't run it and what the at-scale ingress
+  # design looks like when it's enabled. The tunnel token comes from the
+  # runtime .env, the public hostname configuration lives in the
+  # Cloudflare Zero Trust dashboard, and the admin UI is intentionally
+  # NOT exposed through any unauthenticated public hostname.
+  # --------------------------------------------------------------------------
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: fleet-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARED_TOKEN:-}
+    # Profile-gated so the base stack comes up without a tunnel token:
+    #   docker compose up -d                      Fleet only (LAN binding)
+    #   docker compose --profile tunnel up -d     Fleet + cloudflared
+    # The runtime .env defines CLOUDFLARED_TOKEN as optional and the
+    # required public hostname configuration is documented in ADR-0003.
+    profiles: ["tunnel"]
+    depends_on:
+      fleet:
+        condition: service_healthy
+    networks:
+      - fleet-net
+
+# ----------------------------------------------------------------------------
+# Private bridge network: no external exposure.
+# Only cloudflared has a route to the outside world (via outbound tunnel).
+# ----------------------------------------------------------------------------
+networks:
+  fleet-net:
+    driver: bridge
+    name: fleet-net
+
+# ----------------------------------------------------------------------------
+# Named volumes. Live on the Docker host's local disk under
+# /var/lib/docker/volumes/ rather than the NAS-mounted project directory.
+# Rationale is in docs/adr/0002-mysql-redis-on-local-volumes.md.
+# ----------------------------------------------------------------------------
+volumes:
+  fleet-mysql-data:
+    name: fleet-mysql-data
+  fleet-redis-data:
+    name: fleet-redis-data
+  fleet-vulndbs:
+    name: fleet-vulndbs
