@@ -1,0 +1,60 @@
+# ============================================================================
+# Team: macos-corporate
+#
+# For macOS endpoints, including the OpenCore test VM built per the
+# runbook in docs/runbooks/06-macos-vm-opencore.md. Enrollment into this
+# team requires MDM to be configured on the Fleet server, which in turn
+# needs HTTPS ingress (currently deferred, see ADR-0003).
+#
+# Scaffolded now so the team exists in Fleet and policies can be layered
+# on later without restructuring.
+#
+# Env vars:
+#   $MACOS_CORPORATE_ENROLL_SECRET  - team-scoped enrollment secret
+# ============================================================================
+
+name: macos-corporate
+
+team_settings:
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+
+  host_expiry_settings:
+    # Same as linux-workstations: macOS laptops travel.
+    host_expiry_enabled: true
+    host_expiry_window: 60
+
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: false
+      destination_url:
+      host_batch_size: 0
+      policy_ids:
+
+  secrets:
+    - secret: $MACOS_CORPORATE_ENROLL_SECRET
+
+agent_options:
+  config:
+    decorators:
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+        # macOS-specific: record the build version so we can group hosts
+        # by exact OS build, which matters for Apple security updates.
+        - SELECT build AS macos_build FROM os_version;
+    options:
+      disable_distributed: false
+      distributed_interval: 60
+      distributed_plugin: tls
+      distributed_tls_max_attempts: 3
+      logger_tls_endpoint: /api/osquery/log
+      logger_tls_period: 60
+      pack_delimiter: /
+  overrides:
+
+controls:
+policies:
+queries:
+software:

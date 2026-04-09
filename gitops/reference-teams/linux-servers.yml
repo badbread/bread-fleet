@@ -1,0 +1,70 @@
+# ============================================================================
+# Team: linux-servers
+#
+# For long-running Linux infrastructure VMs and servers. Higher compliance
+# bar than workstations. Tighter osquery query intervals to catch drift
+# quickly. In a Premium deployment, team-scoped policies and queries
+# would live alongside this team definition.
+#
+# Env vars:
+#   $LINUX_SERVERS_ENROLL_SECRET  - team-scoped enrollment secret
+# ============================================================================
+
+name: linux-servers
+
+team_settings:
+  features:
+    # Always collect users and software for servers; we want the full
+    # audit surface on anything that stays running long-term.
+    enable_host_users: true
+    enable_software_inventory: true
+
+  host_expiry_settings:
+    # Servers that go offline for 14 days are either dead or being
+    # decommissioned. Drop them from the fleet so stale rows don't
+    # skew compliance metrics.
+    host_expiry_enabled: true
+    host_expiry_window: 14
+
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: false
+      destination_url:
+      host_batch_size: 0
+      policy_ids:
+
+  # Team enrollment secret. Hosts that enroll with this value are
+  # automatically assigned to the linux-servers team on first check-in.
+  secrets:
+    - secret: $LINUX_SERVERS_ENROLL_SECRET
+
+# Override the global agent_options for this team. Servers are on wired
+# networks with reliable uplinks, so we can afford more frequent
+# check-ins than workstations without worrying about battery or cellular
+# data costs.
+agent_options:
+  config:
+    decorators:
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+        # Additional decorator: tag every log with the linux distro id
+        # so we can filter queries by distro in downstream log tools.
+        - SELECT id AS distro FROM os_version;
+    options:
+      disable_distributed: false
+      distributed_interval: 10
+      distributed_plugin: tls
+      distributed_tls_max_attempts: 3
+      logger_tls_endpoint: /api/osquery/log
+      logger_tls_period: 10
+      pack_delimiter: /
+  overrides:
+
+# Controls, policies, queries, software, and scripts are empty here.
+# In a Premium deployment they would carry team-scoped versions of the
+# query and policy content from gitops/default.yml.
+controls:
+policies:
+queries:
+software:

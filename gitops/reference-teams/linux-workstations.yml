@@ -1,0 +1,63 @@
+# ============================================================================
+# Team: linux-workstations
+#
+# For Linux developer and admin laptops and desktops. Lower check-in
+# frequency than servers because users may be on battery or limited
+# connectivity. Looser host expiry because developer laptops go offline
+# for vacation, conferences, etc.
+#
+# Scaffolded here for completeness and to show Fleet's multi-team model;
+# actual developer Linux hosts would get enrolled in a later phase if
+# this project gains them.
+#
+# Env vars:
+#   $LINUX_WORKSTATIONS_ENROLL_SECRET  - team-scoped enrollment secret
+# ============================================================================
+
+name: linux-workstations
+
+team_settings:
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+
+  host_expiry_settings:
+    # Workstations go offline for long stretches during travel and PTO.
+    # Keep the window generous so we don't expire a laptop just because
+    # someone took two weeks off.
+    host_expiry_enabled: true
+    host_expiry_window: 60
+
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: false
+      destination_url:
+      host_batch_size: 0
+      policy_ids:
+
+  secrets:
+    - secret: $LINUX_WORKSTATIONS_ENROLL_SECRET
+
+agent_options:
+  config:
+    decorators:
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+        - SELECT id AS distro FROM os_version;
+    options:
+      disable_distributed: false
+      # Slower poll for workstations: 60 seconds instead of 10. Avoids
+      # draining laptop batteries and reduces background noise.
+      distributed_interval: 60
+      distributed_plugin: tls
+      distributed_tls_max_attempts: 3
+      logger_tls_endpoint: /api/osquery/log
+      logger_tls_period: 60
+      pack_delimiter: /
+  overrides:
+
+controls:
+policies:
+queries:
+software:

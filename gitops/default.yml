@@ -1,0 +1,572 @@
+# ============================================================================
+# Fleet global configuration. Applied via `fleetctl gitops`.
+#
+# Env vars referenced (resolved at apply time from the runtime .env):
+#   $FLEET_SERVER_URL        - URL baked into agent enrollment packages
+#   $FLEET_ORG_NAME          - display name in the Fleet UI
+#   $GLOBAL_ENROLL_SECRET    - global team enrollment secret
+#
+# Third-party integrations (Jira, Zendesk, Google Calendar, etc.) are
+# intentionally left empty. Each one would get its own ADR before being
+# enabled, because each has secret rotation, audit, and rate-limit
+# considerations that don't generalize.
+# ============================================================================
+
+# Default osqueryd options inherited by every host. On Fleet Free this is
+# the only level that matters because there are no teams to override it.
+# See ADR-0004 for the multi-team design that would let these diverge by
+# device class.
+agent_options:
+  config:
+    decorators:
+      # Decorators inject column values into every osqueryd log line, so
+      # downstream log tools (Loki, Splunk, ES) can filter without
+      # joining back against an inventory table.
+      load:
+        - SELECT uuid AS host_uuid FROM system_info;
+        - SELECT hostname AS hostname FROM system_info;
+    options:
+      # 10s distributed_interval is aggressive. Reasonable for a small
+      # deployment with no battery-powered hosts. At enterprise scale,
+      # 30-60s is the right number for laptops because the difference in
+      # incident-response latency is invisible to operators while the
+      # difference in TLS chatter is real for cellular-connected devices.
+      disable_distributed: false
+      distributed_interval: 10
+      distributed_plugin: tls
+      distributed_tls_max_attempts: 3
+      logger_tls_endpoint: /api/osquery/log
+      logger_tls_period: 10
+      pack_delimiter: /
+  overrides:
+
+# Empty at the global level. Controls map to MDM profiles and labels are
+# host-grouping primitives; both are unused in this deployment.
+controls:
+labels:
+
+# ============================================================================
+# Policies
+#
+# Each policy is a yes/no SQL query that returns one row on PASS and zero
+# rows on FAIL. Posture is warn-only across the board, with no remediation
+# scripts attached. The intent is to surface posture in the Fleet UI and
+# in metrics, not to break running hosts.
+#
+# Source: CIS Ubuntu 24.04 Level 1. Section numbers in each name match the
+# CIS document so reviewers can cross-reference. The descriptions are short
+# and assume the reader knows what each control does; they exist to call
+# out the non-obvious choices in the SQL, not to re-explain CIS.
+# ============================================================================
+policies:
+
+  - name: "CIS 1.1.1.1 cramfs filesystem module disabled"
+    platform: linux
+    description: >-
+      Pass: cramfs is not currently loaded as a kernel module. Note: this
+      checks live state via kernel_modules, not the modprobe.d
+      configuration that prevents future loads. A modprobe.d-only fix
+      would still pass this query but be invalidated by a reboot if the
+      module loads on demand.
+    resolution: >-
+      modprobe -r cramfs and add `install cramfs /bin/false` to
+      /etc/modprobe.d/cramfs.conf for persistence.
+    query: >-
+      SELECT 1 WHERE NOT EXISTS (
+        SELECT 1 FROM kernel_modules WHERE name = 'cramfs'
+      );
+    critical: false
+
+  - name: "CIS 1.4.1 bootloader config owned by root and restricted"
+    platform: linux
+    description: >-
+      Pass: /boot/grub/grub.cfg owned by root:root with mode 0600 or
+      0400. The query short-circuits if the file does not exist, which
+      can happen on UEFI-only Ubuntu installs that boot from
+      /boot/efi/EFI/ubuntu/grub.cfg instead. A more complete check would
+      OR the two paths together; this version is intentionally simple.
+    resolution: chown root:root /boot/grub/grub.cfg && chmod 0600 /boot/grub/grub.cfg
+    query: >-
+      SELECT 1 FROM file
+      WHERE path = '/boot/grub/grub.cfg'
+      AND uid = 0 AND gid = 0
+      AND (mode = '0600' OR mode = '0400');
+    critical: false
+
+  - name: "CIS 3.1.1 IPv4 packet forwarding disabled"
+    platform: linux
+    description: >-
+      Pass: net.ipv4.ip_forward sysctl reads as '0'. Uses
+      system_controls (osquery's sysctl table) instead of reading
+      /proc/sys directly so the query is identical on macOS and BSDs
+      where the table exists with the same schema.
+    resolution: >-
+      Set net.ipv4.ip_forward = 0 in /etc/sysctl.conf or a
+      /etc/sysctl.d/ drop-in, then `sysctl --system`.
+    query: >-
+      SELECT 1 FROM system_controls
+      WHERE name = 'net.ipv4.ip_forward' AND current_value = '0';
+    critical: false
+
+  - name: "CIS 3.5 host firewall module is loaded"
+    platform: linux
+    description: >-
+      Pass: at least one of nf_tables, iptable_filter, or ip_tables
+      kernel modules is loaded. This is a presence check, not a
+      ruleset check. A host with nf_tables loaded but no rules
+      passes. A separate policy would assert non-empty default
+      chains; the two together cover the "is there a firewall AND
+      does it actually filter anything" question.
+    resolution: >-
+      Install one of ufw, nftables, or iptables-persistent. Most
+      Ubuntu 24.04 installs already have nf_tables loaded if any
+      firewall manager is running.
+    query: >-
+      SELECT 1 FROM kernel_modules
+      WHERE name IN ('iptable_filter', 'nf_tables', 'ip_tables')
+      LIMIT 1;
+    critical: false
+
+  - name: "CIS 4.1.1.1 auditd package installed"
+    platform: linux
+    description: >-
+      Pass: deb_packages has a row for 'auditd'. Ubuntu Server
+      minimal does not ship auditd by default, so this policy fails
+      on a fresh install until someone runs apt-get install. That
+      is expected and is the entire reason this policy exists in
+      the baseline: a real CIS rollout has to remediate it on
+      every fresh host.
+    resolution: apt-get install -y auditd audispd-plugins
+    query: SELECT 1 FROM deb_packages WHERE name = 'auditd';
+    critical: false
+
+  - name: "CIS 4.2.3 syslog file permissions"
+    platform: linux
+    description: >-
+      Conditional. Pass if rsyslog is not installed (journald-only
+      hosts have a different log security model that a separate
+      policy would evaluate), OR if /var/log/syslog exists with
+      mode in {0640, 0600, 0440, 0400} and ownership by root or
+      the syslog user.
+
+      The original version of this query required uid = 0, which
+      false-failed on every Ubuntu Server install because the
+      default ownership is syslog:adm not root:adm. The current
+      query uses a subquery against the users table to resolve
+      the syslog user's uid at query time, accepting either root
+      or syslog as the legitimate owner. CIS section text actually
+      permits both; the original SQL was stricter than the spec.
+    resolution: >-
+      If rsyslog is installed: chown syslog:adm /var/log/syslog &&
+      chmod 0640 /var/log/syslog. Removing rsyslog (apt-get purge
+      -y rsyslog) also makes the policy pass.
+    query: >-
+      SELECT 1
+      WHERE NOT EXISTS (SELECT 1 FROM deb_packages WHERE name = 'rsyslog')
+         OR EXISTS (
+           SELECT 1 FROM file f
+           WHERE f.path = '/var/log/syslog'
+           AND f.mode IN ('0640', '0600', '0440', '0400')
+           AND (
+             f.uid = 0
+             OR f.uid IN (SELECT uid FROM users WHERE username = 'syslog')
+           )
+         );
+    critical: false
+
+  - name: "CIS 5.1.1 cron daemon is active"
+    platform: linux
+    description: >-
+      Pass: at least one process named 'cron' or 'crond' is in the
+      processes table. Ubuntu Server minimal sometimes ships
+      without cron entirely (depends on the install profile),
+      which is a real-world finding worth catching. The query
+      uses LIMIT 1 so a host with multiple cron-named processes
+      doesn't return multiple rows and accidentally fail the
+      one-row-on-pass contract.
+    resolution: >-
+      systemctl enable --now cron (Debian/Ubuntu) or
+      systemctl enable --now crond (RHEL family).
+    query: >-
+      SELECT 1 FROM processes WHERE name IN ('cron', 'crond') LIMIT 1;
+    critical: false
+
+  - name: "CIS 5.2.1 sshd_config owned by root and restricted"
+    platform: linux
+    description: >-
+      Pass: /etc/ssh/sshd_config owned by root:root with mode 0600
+      or 0644. Both modes are CIS-acceptable; 0644 is the Ubuntu
+      default. This is a perms check only, not a directive value
+      check. A separate policy family would parse the directives
+      themselves (PermitRootLogin, etc.) which requires augeas or
+      the file_lines pattern.
+    resolution: chown root:root /etc/ssh/sshd_config && chmod 0600 /etc/ssh/sshd_config
+    query: >-
+      SELECT 1 FROM file
+      WHERE path = '/etc/ssh/sshd_config'
+      AND uid = 0 AND gid = 0
+      AND (mode = '0600' OR mode = '0644');
+    critical: false
+
+  - name: "CIS 5.2.2 SSH host private keys restricted to root"
+    platform: linux
+    description: >-
+      Pass: /etc/ssh/ssh_host_rsa_key owned by root with mode 0600
+      or 0400. Checks the RSA host key specifically because it
+      exists on every default Ubuntu install. A complete policy
+      family would also cover ssh_host_ecdsa_key and
+      ssh_host_ed25519_key with the same shape; they are omitted
+      here because the demo set is bounded.
+    resolution: chown root:root /etc/ssh/ssh_host_rsa_key && chmod 0600 /etc/ssh/ssh_host_rsa_key
+    query: >-
+      SELECT 1 FROM file
+      WHERE path = '/etc/ssh/ssh_host_rsa_key'
+      AND uid = 0
+      AND (mode = '0600' OR mode = '0400');
+    critical: false
+
+  - name: "CIS 6.1.2 /etc/passwd permissions"
+    platform: linux
+    description: >-
+      Pass: /etc/passwd owned by root:root with mode exactly 0644.
+      No mode flexibility on this one because /etc/passwd has to
+      be world-readable for getpwnam to resolve usernames; making
+      it more restrictive breaks NSS lookups for unprivileged
+      users.
+    resolution: chown root:root /etc/passwd && chmod 0644 /etc/passwd
+    query: >-
+      SELECT 1 FROM file
+      WHERE path = '/etc/passwd'
+      AND uid = 0 AND gid = 0 AND mode = '0644';
+    critical: false
+
+  - name: "CIS 6.1.5 /etc/shadow permissions"
+    platform: linux
+    description: >-
+      Pass: /etc/shadow owned by root with mode in {0640, 0600,
+      0000}. CIS accepts root:shadow or root:root ownership; the
+      query checks uid only because gid varies across distros and
+      the practical security property (not world-readable) is
+      preserved by mode alone.
+    resolution: chown root:shadow /etc/shadow && chmod 0640 /etc/shadow
+    query: >-
+      SELECT 1 FROM file
+      WHERE path = '/etc/shadow'
+      AND uid = 0
+      AND (mode = '0640' OR mode = '0600' OR mode = '0000');
+    critical: false
+
+  - name: "CIS 6.2.5 only root has UID 0"
+    platform: linux
+    description: >-
+      Pass: zero users with uid = 0 and username != 'root'. Any
+      hit here is critical even though the policy is warn-only:
+      a non-root UID-0 account is a backdoor or a misconfigured
+      LDAP/NSS sync, and either way deserves immediate
+      investigation.
+    resolution: >-
+      Investigate the offending account, delete it (do NOT just
+      rename), and audit who created it and when.
+    query: >-
+      SELECT 1 WHERE (
+        SELECT COUNT(*) FROM users WHERE uid = 0 AND username != 'root'
+      ) = 0;
+    critical: false
+
+# ============================================================================
+# Queries
+#
+# Scheduled osquery queries. Four logical groups: system telemetry,
+# security posture, compliance signals (the queries that pair with the
+# CIS policies above), and incident response (differential, observer-runnable).
+#
+# Each query has its own interval picked for the data it returns.
+# Snapshot vs differential is a per-query choice, not a global default.
+# osquery/README.md captures the patterns this set follows.
+# ============================================================================
+queries:
+
+  # System telemetry --------------------------------------------------------
+
+  - name: system_info
+    description: >-
+      Hostname, uuid, CPU, memory, computer_name. Used to build the
+      canonical inventory and to correlate hosts across tools that
+      key on different identifiers (uuid in osquery, hostname in
+      DNS, asset tag elsewhere).
+    query: >-
+      SELECT hostname, uuid, cpu_brand, cpu_physical_cores, cpu_logical_cores,
+      physical_memory, computer_name FROM system_info;
+    interval: 3600
+    platform: darwin,linux,windows
+    observer_can_run: true
+    logging: snapshot
+
+  - name: os_version
+    description: >-
+      OS name, version, build, platform, arch. The baseline join key
+      for any vulnerability scoring or compliance posture work.
+    query: >-
+      SELECT name, version, major, minor, patch, build, platform,
+      platform_like, codename, arch FROM os_version;
+    interval: 3600
+    platform: darwin,linux,windows
+    observer_can_run: true
+    logging: snapshot
+
+  - name: uptime
+    description: >-
+      Days, hours, minutes since last boot. Hosts that never reboot
+      can miss kernel updates; hosts that reboot constantly may be
+      unstable. Both edges are worth surfacing.
+    query: SELECT days, hours, minutes, total_seconds FROM uptime;
+    interval: 3600
+    platform: darwin,linux,windows
+    observer_can_run: true
+    logging: snapshot
+
+  - name: disk_free
+    description: >-
+      Free space per mounted filesystem on common paths. The path
+      filter is intentional: scanning every mount on a host with
+      lots of bind mounts or loopback mounts produces huge result
+      sets that distort the storage picture.
+    query: >-
+      SELECT path, type, blocks_available, blocks_free, blocks, inodes_free
+      FROM mounts WHERE path IN ('/', '/var', '/home', '/tmp', '/System/Volumes/Data');
+    interval: 1800
+    platform: darwin,linux
+    observer_can_run: true
+    logging: snapshot
+
+  - name: installed_packages_linux
+    description: >-
+      dpkg + rpm package inventory unioned. Daily cadence because
+      this table can be expensive on hosts with thousands of
+      packages, and because the data does not change minute to
+      minute. Feeds Fleet's built-in CVE matching.
+    query: >-
+      SELECT name, version FROM deb_packages
+      UNION
+      SELECT name, version FROM rpm_packages;
+    interval: 86400
+    platform: linux
+    logging: snapshot
+
+  # Security posture --------------------------------------------------------
+
+  - name: listening_tcp_ports
+    description: >-
+      Every non-loopback listening TCP port joined against the
+      process that owns it. The join is in-query so the result set
+      is already enriched. Filters out 0.0.0.0 and ::, which appear
+      as wildcard binds in some kernels and add noise without
+      adding signal.
+    query: >-
+      SELECT pid, p.name AS process, port, protocol, address
+      FROM listening_ports l JOIN processes p USING (pid)
+      WHERE address NOT IN ('127.0.0.1', '::1', '0.0.0.0', '::') AND port != 0;
+    interval: 600
+    platform: darwin,linux
+    observer_can_run: true
+    logging: snapshot
+
+  - name: users_with_uid_zero
+    description: >-
+      Every user account with uid = 0. On a healthy system this is
+      one row for 'root'. Anything else is a finding.
+    query: SELECT uid, gid, username, description, shell FROM users WHERE uid = 0;
+    interval: 3600
+    platform: darwin,linux
+    observer_can_run: true
+    logging: snapshot
+
+  - name: suid_binaries
+    description: >-
+      All setuid and setgid binaries on the host. Daily cadence
+      because a full filesystem walk is expensive. The interesting
+      use case for this query is delta detection, not snapshot
+      analysis: alert when a new SUID binary appears that was not
+      in yesterday's result.
+    query: SELECT path, username, groupname, permissions FROM suid_bin;
+    interval: 86400
+    platform: darwin,linux
+    logging: snapshot
+
+  - name: sshd_config_file_integrity
+    description: >-
+      Permissions, ownership, and mtime of /etc/ssh/sshd_config.
+      Pairs with the CIS 5.2.1 policy that asserts the perms are
+      acceptable; this query reports the raw file metadata so an
+      operator can see what the values currently are.
+    query: >-
+      SELECT path, uid, gid, mode, size, mtime FROM file
+      WHERE path = '/etc/ssh/sshd_config';
+    interval: 3600
+    platform: darwin,linux
+    observer_can_run: true
+    logging: snapshot
+
+  - name: crontab_entries
+    description: >-
+      All crontab entries across system-wide cron locations.
+      Persistence mechanism number one for attackers. Limited to
+      the paths osquery's crontab table can read; per-user crontabs
+      under /var/spool/cron require root access which orbit has.
+    query: >-
+      SELECT event, minute, hour, day_of_month, month, day_of_week, command, path
+      FROM crontab;
+    interval: 3600
+    platform: darwin,linux
+    observer_can_run: true
+    logging: snapshot
+
+  # Compliance signals ------------------------------------------------------
+
+  - name: firewall_modules_loaded
+    description: >-
+      Linux kernel module presence check for nf_tables, iptables,
+      or ip6_tables. Telemetry for the CIS 3.5 policy.
+    query: >-
+      SELECT name, size, status FROM kernel_modules
+      WHERE name IN ('iptable_filter', 'nf_tables', 'ip6_tables');
+    interval: 3600
+    platform: linux
+    observer_can_run: true
+    logging: snapshot
+
+  - name: time_sync_processes
+    description: >-
+      Process presence check for chronyd, ntpd, or
+      systemd-timesyncd. Telemetry for any policy that asserts
+      time synchronization. Hosts with bad clocks break TLS,
+      Kerberos, and log correlation in non-obvious ways.
+    query: >-
+      SELECT pid, name, state FROM processes
+      WHERE name IN ('chronyd', 'ntpd', 'systemd-timesyncd');
+    interval: 3600
+    platform: linux
+    observer_can_run: true
+    logging: snapshot
+
+  # Incident response -------------------------------------------------------
+
+  - name: new_processes
+    description: >-
+      Differential log of newly-started processes. Uses
+      differential_ignore_removals so Fleet only logs creation,
+      not exits. Halves the log volume vs snapshot mode.
+      300-second interval is aggressive for production but
+      observer-runnable so it works as a live-query target during
+      incident response without escalating privileges.
+    query: >-
+      SELECT pid, name, path, cmdline, uid, parent, start_time
+      FROM processes;
+    interval: 300
+    platform: darwin,linux
+    observer_can_run: true
+    logging: differential_ignore_removals
+
+org_settings:
+  features:
+    # Collect installed users on every host. Used by the audit-surface
+    # queries that answer "who has local accounts on which machines."
+    enable_host_users: true
+    # Collect installed software inventory. Required for Fleet's built-in
+    # CVE matching against vendor advisories.
+    enable_software_inventory: true
+
+  fleet_desktop:
+    # Fleet Desktop is the end-user tray app. The transparency URL is
+    # what shows when a user clicks "what's being collected from my
+    # device." Default to Fleet's hosted page until there's a
+    # team-specific transparency document.
+    transparency_url: https://fleetdm.com/transparency
+
+  host_expiry_settings:
+    # Drop hosts that have not checked in for 30 days. Avoids the
+    # ghost-host accumulation from decommissioned VMs and forgotten
+    # test systems. 30 days is a tradeoff: shorter and you lose
+    # vacationing laptops, longer and the count drifts upward.
+    host_expiry_enabled: true
+    host_expiry_window: 30
+
+  integrations:
+    # Every third-party integration is intentionally empty. Each one
+    # has secret rotation, audit, and rate-limit considerations that
+    # would be evaluated in its own ADR before being enabled.
+    conditional_access_enabled:
+    custom_scep_proxy:
+    digicert:
+    google_calendar:
+    jira:
+    ndes_scep_proxy:
+    zendesk:
+
+  mdm:
+    # Apple MDM surface is empty. ADR-0003 documents the HTTPS
+    # decision blocking macOS MDM enrollment, and ADR-0004 documents
+    # why Premium-only features are out of scope.
+    apple_server_url:
+    end_user_authentication:
+      entity_id:
+      idp_name:
+      issuer_uri:
+      metadata:
+      metadata_url:
+
+  org_info:
+    contact_url: https://fleetdm.com/company/contact
+    org_logo_url:
+    org_logo_url_light_background:
+    org_name: $FLEET_ORG_NAME
+
+  # Global enrollment secret. The only enrollment secret in scope on
+  # Fleet Free; per-team secrets in reference-teams/ are documented
+  # but not active. See ADR-0004.
+  secrets:
+    - secret: $GLOBAL_ENROLL_SECRET
+
+  server_settings:
+    ai_features_disabled: true
+    deferred_save_host: false
+    # Anonymous usage stats off because the telemetry from a single
+    # demonstration deployment is not representative of any real fleet
+    # and would skew Fleet's aggregate metrics if reported.
+    enable_analytics: false
+    live_query_disabled: false
+    query_report_cap: 0
+    query_reports_disabled: false
+    scripts_disabled: false
+    # The URL Fleet bakes into agent enrollment packages and invite
+    # email links. MUST be reachable from every enrolled host.
+    server_url: $FLEET_SERVER_URL
+
+  sso_settings:
+    enable_sso: false
+    enable_sso_idp_login: false
+    entity_id:
+    idp_image_url:
+    idp_name:
+    metadata:
+    metadata_url:
+
+  webhook_settings:
+    activities_webhook:
+      destination_url:
+      enable_activities_webhook: false
+    failing_policies_webhook:
+      destination_url:
+      enable_failing_policies_webhook: false
+      host_batch_size: 0
+      policy_ids:
+    host_status_webhook:
+      days_count: 0
+      destination_url:
+      enable_host_status_webhook: false
+      host_percentage: 0
+    interval: 24h0m0s
+    vulnerabilities_webhook:
+      destination_url:
+      enable_vulnerabilities_webhook: false
+      host_batch_size: 0
