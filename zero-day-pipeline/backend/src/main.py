@@ -22,7 +22,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from .audit import AuditAction, AuditLogger
@@ -89,16 +89,16 @@ app.add_middleware(
 # Dependency injection helpers
 # ------------------------------------------------------------------ #
 
-def _kev(request) -> KevClient:
+def _kev(request: Request) -> KevClient:
     return request.app.state.kev_client
 
-def _fleet(request) -> FleetClient:
+def _fleet(request: Request) -> FleetClient:
     return request.app.state.fleet_client
 
-def _audit(request) -> AuditLogger:
+def _audit(request: Request) -> AuditLogger:
     return request.app.state.audit
 
-def _settings(request) -> Settings:
+def _settings(request: Request) -> Settings:
     return request.app.state.settings
 
 
@@ -116,11 +116,10 @@ async def kev_feed(
     days: Optional[int] = Query(default=None, ge=1, le=365),
     product: Optional[str] = Query(default=None, min_length=1),
     ransomware_only: bool = Query(default=False),
-    request=None,
+    kev: KevClient = Depends(_kev),
+    audit: AuditLogger = Depends(_audit),
 ):
     """Browse the CISA KEV catalog with optional filters."""
-    kev = _kev(request)
-    audit = _audit(request)
 
     entries = await kev.filter_feed(
         days=days, product=product, ransomware_only=ransomware_only,
@@ -133,10 +132,8 @@ async def kev_feed(
 
 
 @app.get("/api/kev/{cve_id}", response_model=MappedKev)
-async def kev_detail(cve_id: str, request=None):
+async def kev_detail(cve_id: str, kev: KevClient = Depends(_kev), settings: Settings = Depends(_settings)):
     """Look up a single KEV entry and return its mapping status."""
-    kev = _kev(request)
-    settings = _settings(request)
 
     entry = await kev.get_entry(cve_id)
     if not entry:
@@ -151,11 +148,8 @@ async def kev_detail(cve_id: str, request=None):
 
 
 @app.post("/api/kev/{cve_id}/map", response_model=MappedKev)
-async def map_kev(cve_id: str, request=None):
+async def map_kev(cve_id: str, kev: KevClient = Depends(_kev), audit: AuditLogger = Depends(_audit), settings: Settings = Depends(_settings)):
     """Generate an osquery detection query for a KEV entry."""
-    kev = _kev(request)
-    audit = _audit(request)
-    settings = _settings(request)
 
     entry = await kev.get_entry(cve_id)
     if not entry:
@@ -175,15 +169,18 @@ async def map_kev(cve_id: str, request=None):
 
 
 @app.post("/api/kev/{cve_id}/deploy", response_model=DeployedPolicy)
-async def deploy_kev(cve_id: str, body: DeployRequest, request=None):
+async def deploy_kev(
+    cve_id: str,
+    body: DeployRequest,
+    kev: KevClient = Depends(_kev),
+    fleet: FleetClient = Depends(_fleet),
+    audit: AuditLogger = Depends(_audit),
+    settings: Settings = Depends(_settings),
+):
     """Deploy a KEV detection query as a Fleet policy.
 
     Set dry_run=true to preview the policy without deploying it.
     """
-    kev = _kev(request)
-    fleet = _fleet(request)
-    audit = _audit(request)
-    settings = _settings(request)
 
     entry = await kev.get_entry(cve_id)
     if not entry:
@@ -259,15 +256,14 @@ async def deploy_kev(cve_id: str, body: DeployRequest, request=None):
 
 
 @app.get("/api/policies", response_model=list[DeployedPolicy])
-async def list_deployed(request=None):
+async def list_deployed():
     """List policies deployed through this pipeline."""
     return list(_deployed.values())
 
 
 @app.get("/api/policies/{policy_id}/results", response_model=list[HostResult])
-async def policy_results(policy_id: int, request=None):
+async def policy_results(policy_id: int, fleet: FleetClient = Depends(_fleet)):
     """Get per-host pass/fail results for a deployed policy."""
-    fleet = _fleet(request)
 
     try:
         passing = await fleet.list_hosts(policy_id=policy_id, policy_status="passing")
@@ -290,10 +286,8 @@ async def policy_results(policy_id: int, request=None):
 
 
 @app.delete("/api/policies/{policy_id}")
-async def delete_policy(policy_id: int, request=None):
+async def delete_policy(policy_id: int, fleet: FleetClient = Depends(_fleet), audit: AuditLogger = Depends(_audit)):
     """Remove a deployed policy from Fleet."""
-    fleet = _fleet(request)
-    audit = _audit(request)
 
     deployed = _deployed.get(policy_id)
     cve_id = deployed.cve_id if deployed else "unknown"
@@ -313,10 +307,8 @@ async def delete_policy(policy_id: int, request=None):
 
 
 @app.get("/api/stats", response_model=PipelineStats)
-async def stats(request=None):
+async def stats(kev: KevClient = Depends(_kev), settings: Settings = Depends(_settings)):
     """Summary statistics: how many KEV entries are mappable."""
-    kev = _kev(request)
-    settings = _settings(request)
 
     entries = await kev.fetch_feed()
 
