@@ -72,11 +72,11 @@ export default function SimulatedConsole({ remediationId, hostname }: Props) {
 
     const addLine = () => {
       if (i < script.length) {
-        setLines((prev) => [...prev, script[i]]);
+        const line = script[i];
+        setLines((prev) => [...prev, line]);
         i++;
         // Commands ($ lines) take longer — simulates typing + execution.
         // Output lines appear faster. Empty lines pause briefly.
-        const line = script[i - 1];
         const delay = line.startsWith("$") ? 1200 : line === "" ? 600 : 800;
         timeout = setTimeout(addLine, delay);
       } else {
