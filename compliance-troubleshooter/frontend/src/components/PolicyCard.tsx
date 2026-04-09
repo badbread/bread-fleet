@@ -1,15 +1,11 @@
 // PolicyCard renders one translated failing policy: summary, impact,
-// fix steps, and either a Fix button (when the remediation registry
-// has an automated handler for this policy) or an "escalate" notice.
-//
-// The card is the only place in the frontend that calls the
-// remediation API. After a remediation completes, it triggers the
-// parent's onRemediated callback (which is the same as onRecheck on
-// HostDetail) so the whole compliance view re-fetches.
+// fix steps, and a Fix button that triggers a simulated console
+// showing the remediation script running. The simulation is honest
+// about being simulated and explains why (Fleet Free API limitation).
 
 import { useState } from "react";
-import type { TranslatedPolicy, RemediationOutcome } from "../types";
-import { runRemediation } from "../api";
+import type { TranslatedPolicy } from "../types";
+import SimulatedConsole from "./SimulatedConsole";
 
 interface Props {
   hostname: string;
@@ -18,35 +14,7 @@ interface Props {
 }
 
 export default function PolicyCard({ hostname, policy, onRemediated }: Props) {
-  const [running, setRunning] = useState(false);
-  const [result, setResult] = useState<{
-    outcome: RemediationOutcome;
-    message: string;
-  } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleFix = async () => {
-    if (!policy.automated_remediation_id) return;
-    setRunning(true);
-    setError(null);
-    setResult(null);
-    try {
-      const r = await runRemediation(hostname, policy.automated_remediation_id);
-      setResult({ outcome: r.outcome, message: r.message });
-      // If the remediation succeeded or asks for a re-check, refresh
-      // the compliance view automatically. The parent will re-render
-      // and replace this card with the new policy state.
-      if (r.outcome === "succeeded" || r.outcome === "requires_recheck") {
-        // Small delay so the operator sees the success message before
-        // the card unmounts.
-        setTimeout(onRemediated, 1500);
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setRunning(false);
-    }
-  };
+  const [showConsole, setShowConsole] = useState(false);
 
   return (
     <article className="card">
@@ -73,34 +41,26 @@ export default function PolicyCard({ hostname, policy, onRemediated }: Props) {
           </ol>
         </div>
 
-        {/* Action area: either a Fix button (automated path) or an
-            escalation note (manual path). */}
-        {policy.support_can_fix_themselves && policy.automated_remediation_id && (
+        {/* Fix button: shows for policies with an automated remediation path */}
+        {policy.support_can_fix_themselves && policy.automated_remediation_id && !showConsole && (
           <div className="mt-5 pt-4 border-t border-neutral-100">
             <button
               type="button"
-              onClick={handleFix}
-              disabled={running}
+              onClick={() => setShowConsole(true)}
               className="btn-primary"
             >
-              {running ? "Running fix..." : "Fix it now"}
+              Fix it now
             </button>
-            {result && (
-              <p
-                className={
-                  "mt-3 text-[13px] " +
-                  (result.outcome === "failed" || result.outcome === "not_implemented"
-                    ? "text-severity-critical"
-                    : "text-[#0F7B6C]")
-                }
-              >
-                {result.message}
-              </p>
-            )}
-            {error && (
-              <p className="mt-3 text-[13px] text-severity-critical">Error: {error}</p>
-            )}
           </div>
+        )}
+
+        {/* Simulated console showing the fix running */}
+        {showConsole && policy.automated_remediation_id && (
+          <SimulatedConsole
+            remediationId={policy.automated_remediation_id}
+            hostname={hostname}
+            onComplete={onRemediated}
+          />
         )}
 
         {!policy.support_can_fix_themselves && policy.escalate_to && (

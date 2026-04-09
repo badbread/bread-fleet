@@ -67,7 +67,7 @@ _STATIC_TRANSLATIONS: dict[str, dict] = {
         ],
         "severity": Severity.LOW,
         "support_can_fix_themselves": True,
-        "automated_remediation_id": None,  # Manual stub for now
+        "automated_remediation_id": "cramfs_disable",
     },
     "CIS 1.4.1 bootloader config owned by root and restricted": {
         "summary": (
@@ -86,7 +86,7 @@ _STATIC_TRANSLATIONS: dict[str, dict] = {
         ],
         "severity": Severity.MEDIUM,
         "support_can_fix_themselves": True,
-        "automated_remediation_id": None,
+        "automated_remediation_id": "bootloader_perms",
     },
     "CIS 3.1.1 IPv4 packet forwarding disabled": {
         "summary": (
@@ -105,7 +105,7 @@ _STATIC_TRANSLATIONS: dict[str, dict] = {
         ],
         "severity": Severity.HIGH,
         "support_can_fix_themselves": True,
-        "automated_remediation_id": None,
+        "automated_remediation_id": "ipv4_forward_disable",
     },
     "CIS 3.5 host firewall module is loaded": {
         "summary": (
