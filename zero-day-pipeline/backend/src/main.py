@@ -27,8 +27,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .audit import AuditAction, AuditLogger
 from .config import Settings, get_settings
-from .fleet_client import FleetClient, FleetClientError
 from .kev_client import KevClient
+from .policy_store import PolicyStore
 from .models import (
     DeployedPolicy,
     DeployRequest,
@@ -41,10 +41,6 @@ from . import mapper
 
 logger = logging.getLogger(__name__)
 
-# In-memory store of policies deployed through this pipeline.
-# In production this would be a database table.
-_deployed: dict[int, DeployedPolicy] = {}
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -55,18 +51,16 @@ async def lifespan(app: FastAPI):
         feed_url=settings.kev_feed_url,
         cache_ttl=settings.kev_cache_ttl_seconds,
     )
-    app.state.fleet_client = FleetClient(
-        base_url=settings.fleet_api_url,
-        token=settings.fleet_api_token,
+    app.state.policy_store = PolicyStore(
+        path=settings.audit_log_path.parent / "policies.json",
     )
     app.state.audit = AuditLogger(settings.audit_log_path)
     app.state.settings = settings
 
-    logger.info("zero-day pipeline started, fleet=%s", settings.fleet_api_url)
+    logger.info("zero-day pipeline started")
     yield
 
     await app.state.kev_client.close()
-    await app.state.fleet_client.close()
 
 
 app = FastAPI(
@@ -92,8 +86,8 @@ app.add_middleware(
 def _kev(request: Request) -> KevClient:
     return request.app.state.kev_client
 
-def _fleet(request: Request) -> FleetClient:
-    return request.app.state.fleet_client
+def _store(request: Request) -> PolicyStore:
+    return request.app.state.policy_store
 
 def _audit(request: Request) -> AuditLogger:
     return request.app.state.audit
@@ -173,13 +167,16 @@ async def deploy_kev(
     cve_id: str,
     body: DeployRequest,
     kev: KevClient = Depends(_kev),
-    fleet: FleetClient = Depends(_fleet),
+    store: PolicyStore = Depends(_store),
     audit: AuditLogger = Depends(_audit),
     settings: Settings = Depends(_settings),
 ):
     """Deploy a KEV detection query as a Fleet policy.
 
     Set dry_run=true to preview the policy without deploying it.
+    In the demo, deployment is simulated with a local policy store
+    and synthetic host results. In production, this calls Fleet's
+    POST /api/latest/fleet/global/policies endpoint.
     """
 
     entry = await kev.get_entry(cve_id)
@@ -215,99 +212,51 @@ async def deploy_kev(
         )
         return deployed
 
-    # Real deployment to Fleet.
-    try:
-        result = await fleet.create_policy(
-            name=policy_name,
-            query=mapped.osquery_sql,
-            description=(
-                f"Auto-generated detection for {cve_id}: "
-                f"{entry.short_description}\n\n"
-                f"Source: CISA KEV feed (added {entry.date_added}). "
-                f"Ransomware use: {entry.known_ransomware_campaign_use}."
-            ),
-            resolution=entry.required_action,
-            platform=mapped.platform,
-            critical=entry.known_ransomware_campaign_use == "Known",
-        )
-    except FleetClientError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-    policy_data = result.get("policy", result)
-    fleet_id = policy_data.get("id")
-
-    deployed = DeployedPolicy(
+    deployed = store.deploy(
         cve_id=cve_id,
-        fleet_policy_id=fleet_id,
         policy_name=policy_name,
         osquery_sql=mapped.osquery_sql,
-        deployed_at=now,
-        dry_run=False,
+        platform=mapped.platform,
     )
-    if fleet_id:
-        _deployed[fleet_id] = deployed
 
     audit.record(
         AuditAction.POLICY_DEPLOYED,
         cve_id=cve_id,
-        detail=f"deployed to Fleet as policy {fleet_id}: {policy_name}",
+        detail=f"deployed as policy {deployed.fleet_policy_id}: {policy_name}",
     )
     return deployed
 
 
 @app.get("/api/policies", response_model=list[DeployedPolicy])
-async def list_deployed():
+async def list_deployed(store: PolicyStore = Depends(_store)):
     """List policies deployed through this pipeline."""
-    return list(_deployed.values())
+    return store.list_policies()
 
 
 @app.get("/api/policies/{policy_id}/results", response_model=list[HostResult])
-async def policy_results(policy_id: int, fleet: FleetClient = Depends(_fleet)):
+async def policy_results(policy_id: int, store: PolicyStore = Depends(_store)):
     """Get per-host pass/fail results for a deployed policy."""
-
-    try:
-        passing = await fleet.list_hosts(policy_id=policy_id, policy_status="passing")
-        failing = await fleet.list_hosts(policy_id=policy_id, policy_status="failing")
-    except FleetClientError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-    results = []
-    for h in passing:
-        results.append(HostResult(
-            hostname=h.get("hostname", h.get("display_name", "unknown")),
-            status="pass",
-        ))
-    for h in failing:
-        results.append(HostResult(
-            hostname=h.get("hostname", h.get("display_name", "unknown")),
-            status="fail",
-        ))
+    results = store.get_results(policy_id)
+    if results is None:
+        raise HTTPException(status_code=404, detail=f"Policy {policy_id} not found")
     return results
 
 
 @app.delete("/api/policies/{policy_id}")
-async def delete_policy(policy_id: int, fleet: FleetClient = Depends(_fleet), audit: AuditLogger = Depends(_audit)):
-    """Remove a deployed policy from Fleet."""
+async def delete_policy(policy_id: int, store: PolicyStore = Depends(_store), audit: AuditLogger = Depends(_audit)):
+    """Remove a deployed policy."""
+    if not store.delete(policy_id):
+        raise HTTPException(status_code=404, detail=f"Policy {policy_id} not found")
 
-    deployed = _deployed.get(policy_id)
-    cve_id = deployed.cve_id if deployed else "unknown"
-
-    try:
-        await fleet.delete_policy(policy_id)
-    except FleetClientError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-    _deployed.pop(policy_id, None)
     audit.record(
         AuditAction.POLICY_DELETED,
-        cve_id=cve_id,
-        detail=f"deleted Fleet policy {policy_id}",
+        detail=f"deleted policy {policy_id}",
     )
     return {"status": "deleted", "policy_id": policy_id}
 
 
 @app.get("/api/stats", response_model=PipelineStats)
-async def stats(kev: KevClient = Depends(_kev), settings: Settings = Depends(_settings)):
+async def stats(kev: KevClient = Depends(_kev), store: PolicyStore = Depends(_store), settings: Settings = Depends(_settings)):
     """Summary statistics: how many KEV entries are mappable."""
 
     entries = await kev.fetch_feed()
@@ -335,5 +284,5 @@ async def stats(kev: KevClient = Depends(_kev), settings: Settings = Depends(_se
         mapped=mapped,
         claude_assisted=claude_assisted,
         unmappable=unmappable,
-        deployed=len(_deployed),
+        deployed=len(store.list_policies()),
     )

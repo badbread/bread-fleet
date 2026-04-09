@@ -22,8 +22,10 @@ class Settings(BaseSettings):
 
     # Fleet REST API connection. Required for deploying generated
     # policies and checking host results.
-    fleet_api_url: str = Field(description="Fleet server URL, e.g. https://fleet.lan:8080")
-    fleet_api_token: str = Field(description="Fleet API token for policy management")
+    # Fleet REST API connection. Required for live deployment mode;
+    # the demo uses a local policy store instead.
+    fleet_api_url: str = ""
+    fleet_api_token: str = ""
 
     # CISA KEV feed. The default URL is the official JSON catalog.
     kev_feed_url: str = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
