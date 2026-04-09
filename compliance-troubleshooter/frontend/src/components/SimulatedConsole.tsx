@@ -7,7 +7,6 @@ import { useState, useEffect, useRef } from "react";
 interface Props {
   remediationId: string;
   hostname: string;
-  onComplete: () => void;
 }
 
 // Simulated output per remediation type.
@@ -60,7 +59,7 @@ const DEFAULT_SCRIPT = [
   "✓ Remediation applied.",
 ];
 
-export default function SimulatedConsole({ remediationId, hostname, onComplete }: Props) {
+export default function SimulatedConsole({ remediationId, hostname }: Props) {
   const [lines, setLines] = useState<string[]>([]);
   const [done, setDone] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -141,12 +140,10 @@ export default function SimulatedConsole({ remediationId, hostname, onComplete }
             real CA certificate, the same remediation runs as a live shell script
             dispatched through Fleet's agent — the architecture is identical.
           </p>
-          <button
-            onClick={onComplete}
-            className="mt-3 px-4 py-1.5 text-[13px] font-medium bg-accent text-white rounded-md hover:bg-accent/90 transition-colors"
-          >
-            Re-check compliance
-          </button>
+          <p className="mt-2 text-[12px] text-neutral-500 italic">
+            In production, the "Re-check" button would re-fetch the host's
+            policy status from Fleet to confirm the fix took effect.
+          </p>
         </div>
       )}
     </div>

@@ -10,10 +10,10 @@ import SimulatedConsole from "./SimulatedConsole";
 interface Props {
   hostname: string;
   policy: TranslatedPolicy;
-  onRemediated: () => void;
+  onRemediated?: () => void;
 }
 
-export default function PolicyCard({ hostname, policy, onRemediated }: Props) {
+export default function PolicyCard({ hostname, policy }: Props) {
   const [showConsole, setShowConsole] = useState(false);
 
   return (
@@ -59,7 +59,6 @@ export default function PolicyCard({ hostname, policy, onRemediated }: Props) {
           <SimulatedConsole
             remediationId={policy.automated_remediation_id}
             hostname={hostname}
-            onComplete={onRemediated}
           />
         )}
 
