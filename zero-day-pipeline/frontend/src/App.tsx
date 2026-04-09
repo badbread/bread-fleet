@@ -12,8 +12,12 @@ import DeployedPolicies from "./components/DeployedPolicies";
 export default function App() {
   const [selected, setSelected] = useState<MappedKev | null>(null);
   const [deployTrigger, setDeployTrigger] = useState(0);
+  const [deployedCves, setDeployedCves] = useState<Set<string>>(new Set());
 
-  const handleDeployed = (_policy: DeployedPolicy) => {
+  const handleDeployed = (policy: DeployedPolicy) => {
+    if (!policy.dry_run) {
+      setDeployedCves((prev) => new Set(prev).add(policy.cve_id));
+    }
     setDeployTrigger((n) => n + 1);
   };
 
@@ -49,6 +53,7 @@ export default function App() {
               <KevFeed
                 onSelect={setSelected}
                 selectedCve={selected?.kev.cveID ?? null}
+                deployedCves={deployedCves}
               />
             </div>
 

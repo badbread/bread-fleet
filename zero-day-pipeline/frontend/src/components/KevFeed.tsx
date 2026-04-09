@@ -10,6 +10,7 @@ import { getKevFeed, mapKev } from "../api";
 interface Props {
   onSelect: (mapped: MappedKev) => void;
   selectedCve: string | null;
+  deployedCves: Set<string>;
 }
 
 // Client-side hint: product keywords that the backend registry can
@@ -31,7 +32,7 @@ function likelyMappable(entry: KevEntry): boolean {
   return MAPPABLE_HINTS.some((hint) => vp.includes(hint) || p.includes(hint));
 }
 
-export default function KevFeed({ onSelect, selectedCve }: Props) {
+export default function KevFeed({ onSelect, selectedCve, deployedCves }: Props) {
   const [entries, setEntries] = useState<KevEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -138,6 +139,7 @@ export default function KevFeed({ onSelect, selectedCve }: Props) {
         {!loading &&
           entries.map((entry) => {
             const mappable = likelyMappable(entry);
+            const deployed = deployedCves.has(entry.cveID);
             return (
               <button
                 key={entry.cveID}
@@ -150,13 +152,18 @@ export default function KevFeed({ onSelect, selectedCve }: Props) {
                 <div className="flex items-center gap-2">
                   <span
                     className={`w-2 h-2 rounded-full shrink-0 ${
-                      mappable ? "bg-mapping-mapped" : "bg-neutral-300"
+                      deployed ? "bg-accent" : mappable ? "bg-mapping-mapped" : "bg-neutral-300"
                     }`}
-                    title={mappable ? "Likely mappable to osquery" : "May not be detectable via osquery"}
+                    title={deployed ? "Deployed to Fleet" : mappable ? "Likely mappable to osquery" : "May not be detectable via osquery"}
                   />
                   <span className="text-[13px] font-medium text-neutral-700 flex-1">
                     {entry.cveID}
                   </span>
+                  {deployed && (
+                    <span className="text-[10px] font-semibold uppercase text-accent bg-accent-subtle px-1.5 py-0.5 rounded shrink-0">
+                      Deployed
+                    </span>
+                  )}
                   <span className="text-[11px] text-neutral-500 shrink-0">
                     {entry.dateAdded}
                   </span>
