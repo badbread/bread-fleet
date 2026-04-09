@@ -85,7 +85,7 @@ piece in the at-scale section of this ADR.
    zero-day pipeline almost certainly Python), and a Python
    backend keeps the language footprint coherent. CPE-team
    tooling tends Python-heavy in practice; matching that signal
-   matters for the portfolio.
+   matters for the project.
 
 3. **Material UI for the frontend.** Faster to build, more
    components out of the box. Rejected because a generic

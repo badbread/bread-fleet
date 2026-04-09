@@ -18,7 +18,7 @@ Build a module that:
 2. **Maps KEV entries to osquery SQL** via a curated product registry (~20 entries for common Linux packages like OpenSSL, curl, sudo, Apache, nginx, Chrome).
 3. **Uses Claude API as a fallback** for unknown products. Claude receives the KEV entry details, available osquery tables, and example query patterns. It returns SQL with a confidence indicator. Claude-generated queries are never auto-deployed — they require manual approval before reaching Fleet.
 4. **Deploys generated queries as Fleet policies** via the Fleet API, targeting the 2 enrolled demo hosts.
-5. **Runs on-demand** (not as a background poller) so the demo is interactive — the interviewer triggers a scan, sees results, and watches a policy appear in Fleet in real time.
+5. **Runs on-demand** (not as a background poller) so the demo is interactive — the operator triggers a scan, sees results, and watches a policy appear in Fleet in real time.
 6. **Includes a dry-run toggle** for safe preview of what would be deployed without touching Fleet.
 7. **Writes a JSONL audit log** for every action taken.
 
@@ -38,7 +38,7 @@ Pull structured CPE data from NVD to get exact affected version ranges, then gen
 
 ### 3. GitOps-only deployment (generate YAML PRs, not API calls)
 
-Generate Fleet policy YAML and open PRs against a GitOps repo instead of calling the Fleet API directly. More realistic for production workflows but less demonstrable in a live demo — the interviewer cannot see a policy appear in Fleet in real time.
+Generate Fleet policy YAML and open PRs against a GitOps repo instead of calling the Fleet API directly. More realistic for production workflows but less demonstrable in a live demo — the operator cannot see a policy appear in Fleet in real time.
 
 **Rejected** for the demo. Documented as the at-scale deployment path.
 

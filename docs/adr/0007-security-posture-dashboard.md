@@ -93,17 +93,17 @@ integration; this module is data visualization, not AI translation.
    per-device compliance. But the per-device view is support-facing.
    A CPE team also needs fleet-wide visibility for leadership
    reporting, remediation prioritization, and trend analysis. Skipping
-   the dashboard leaves that gap unaddressed in the portfolio.
+   the dashboard leaves that gap unaddressed in the project.
 
 4. **Use a third-party BI tool (Grafana, Metabase) instead of a
-   custom React app.** Faster to stand up, but the portfolio value is
+   custom React app.** Faster to stand up, but the value is
    in showing the purpose-built UI and the thinking behind what a CPE
    dashboard should surface. A generic BI dashboard doesn't
    demonstrate the same understanding of the problem space.
 
 ## Tradeoffs
 
-- **The dashboard runs on fake data.** The portfolio landing page is
+- **The dashboard runs on fake data.** The portal landing page is
   honest about this, but a skeptical viewer might discount the module
   as "just a chart over a JSON file." The counterargument: the seed
   data itself is the artifact. It shows understanding of realistic

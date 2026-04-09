@@ -152,7 +152,7 @@ Every other part of the Compliance Troubleshooter is unaffected.
 1. **Read orbit's Go source and find the bug.** High time cost,
    uncertain outcome, specific to a version of orbit that the
    project will replace eventually. Rejected as not worth the
-   investment for a portfolio demo.
+   investment for a demo deployment.
 
 2. **Upgrade Fleet and orbit to the latest version.** Might include
    a fix for this path. Risk of introducing new issues mid-demo.
@@ -201,7 +201,7 @@ Every other part of the Compliance Troubleshooter is unaffected.
   particular enroll-then-silent failure mode. Time I could have
   spent on the Zero-Day Pipeline or the Security Posture
   Dashboard. Recording it here at least means the time produces
-  portfolio artifact value.
+  documentary value.
 
 - **The Fleet server is now TLS-terminated on the LAN** even
   though the original orbit fix it enabled never worked. Not a

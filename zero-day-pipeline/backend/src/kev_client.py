@@ -3,7 +3,7 @@
 Fetches the full KEV JSON catalog and caches it for a configurable
 TTL. The feed is ~1200 entries and fits comfortably in memory. The
 cache avoids hammering CISA's server during a demo session where
-the interviewer is clicking through entries.
+the operator is clicking through entries.
 """
 
 import logging

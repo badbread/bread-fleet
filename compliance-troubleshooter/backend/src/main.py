@@ -20,6 +20,7 @@ would be behind the same SSO as the rest of the tool.
 
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from typing import AsyncIterator
 
 from fastapi import Depends, FastAPI, HTTPException, Query
@@ -223,7 +224,7 @@ async def host_compliance(
         fail_count=len(fails),
         pending_count=pending_count(host),
         failing_policies=translated,
-        last_checked=__import__("datetime").datetime.now(__import__("datetime").timezone.utc),
+        last_checked=datetime.now(timezone.utc),
     )
 
 
