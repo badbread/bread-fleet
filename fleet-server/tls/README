@@ -1,0 +1,3 @@
+# This directory holds TLS material for Fleet when serving HTTPS locally.
+# At runtime, populate with fleet.crt and fleet.key. See ADR-0006.
+# The actual cert and key files are gitignored.

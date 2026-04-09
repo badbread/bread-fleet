@@ -155,12 +155,16 @@ services:
       # fleet-net bridge.
       FLEET_SERVER_ADDRESS: 0.0.0.0:8080
 
-      # ---- TLS (intentionally off in this deployment) --------------------
-      # ADR-0003 documents the LAN-only ingress decision and why TLS is
-      # off here. At enterprise scale, TLS terminates at the Cloudflare
-      # edge via the path-restricted tunnel hostnames, not on Fleet
-      # itself, so this setting stays "false" even in the at-scale design.
-      FLEET_SERVER_TLS: "false"
+      # ---- TLS (env-var-gated for LAN-only HTTPS) ------------------------
+      # Default off. When the runtime .env sets FLEET_SERVER_TLS=true and
+      # provides cert and key paths, Fleet terminates TLS itself on the
+      # listen port. This is the path used in the deployment shape that
+      # supports orbit's own HTTPS API calls (capabilities reporting,
+      # script execution dispatch) without exposing Fleet publicly.
+      # See ADR-0006 for the orbit HTTPS finding and the cert decision.
+      FLEET_SERVER_TLS: ${FLEET_SERVER_TLS:-false}
+      FLEET_SERVER_CERT: ${FLEET_SERVER_CERT:-}
+      FLEET_SERVER_KEY: ${FLEET_SERVER_KEY:-}
 
       # ---- Public URL ----------------------------------------------------
       # The URL Fleet bakes into agent enrollment packages and invite
@@ -191,6 +195,11 @@ services:
       # on startup if missing) but persisting across restarts avoids ~200MB
       # of repeat downloads every time the container is recreated.
       - fleet-vulndbs:/tmp/vulndbs
+      # Optional TLS material. If FLEET_SERVER_TLS=true in the runtime
+      # .env, this directory must contain fleet.crt and fleet.key. The
+      # source repo ships an empty tls/ for portability; the runtime
+      # populates it with a self-signed cert (or a real one) per ADR-0006.
+      - ./tls:/etc/fleet/tls:ro
     # Host port binding. Fleet is reachable at http://<docker-host>:8080
     # from any device on the trusted network. The perimeter firewall
     # blocks inbound from WAN, so this is LAN-only, not internet-exposed.

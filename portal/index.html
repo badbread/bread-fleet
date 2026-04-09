@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fleet Operations Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      background: #F7F7F5;
+      color: #37352F;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: #FFFFFF;
+      border-bottom: 1px solid #E9E9E7;
+      padding: 2rem 2rem 1.75rem;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin-bottom: 0.5rem;
+    }
+
+    header p {
+      font-size: 14px;
+      color: #787774;
+      max-width: 520px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    main {
+      flex: 1;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+      width: 100%;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    @media (min-width: 640px) {
+      .card-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    .card {
+      background: #FFFFFF;
+      border: 1px solid #E9E9E7;
+      border-radius: 6px;
+      padding: 1.5rem;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card:hover:not(.card--disabled) {
+      border-color: #C9C9C5;
+      box-shadow: 0 1px 4px rgba(15, 15, 15, 0.06);
+    }
+
+    .card--disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+    .card__badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 2px 8px;
+      border-radius: 3px;
+      margin-bottom: 0.75rem;
+      width: fit-content;
+    }
+
+    .card__badge--live {
+      color: #0B6E99;
+      background: #DDEBF1;
+    }
+
+    .card__badge--augmented {
+      color: #D9730D;
+      background: #FAEBDD;
+    }
+
+    .card__badge--soon {
+      color: #787774;
+      background: #F1F1EF;
+    }
+
+    .card__title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      letter-spacing: -0.01em;
+    }
+
+    .card__desc {
+      font-size: 13px;
+      color: #787774;
+      line-height: 1.55;
+      flex: 1;
+    }
+
+    .card__arrow {
+      margin-top: 1rem;
+      font-size: 13px;
+      color: #2383E2;
+      font-weight: 500;
+    }
+
+    .card--disabled .card__arrow { display: none; }
+
+    footer {
+      background: #FFFFFF;
+      border-top: 1px solid #E9E9E7;
+      text-align: center;
+      padding: 0.75rem 2rem;
+      font-size: 12px;
+      color: #787774;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Fleet Operations Portal</h1>
+    <p>
+      Prototype tooling for an enterprise Fleet deployment. Each module
+      addresses a gap that Fleet's built-in UI does not cover.
+    </p>
+  </header>
+
+  <main>
+    <div class="card-grid">
+      <a href="/compliance/" class="card">
+        <span class="card__badge card__badge--live">Live data</span>
+        <div class="card__title">Compliance Troubleshooter</div>
+        <div class="card__desc">
+          Connected to a real Fleet instance with real devices and real CIS
+          benchmark policies. Search a hostname and see actual compliance
+          data translated into plain English by Claude.
+        </div>
+        <div class="card__arrow">Open troubleshooter &rarr;</div>
+      </a>
+
+      <a href="/dashboard/" class="card">
+        <span class="card__badge card__badge--augmented">Augmented data</span>
+        <div class="card__title">Security Posture Dashboard</div>
+        <div class="card__desc">
+          Built on real Fleet policies and device archetypes, scaled to
+          ~150 devices. Demonstrates fleet-wide visibility Fleet doesn't
+          provide: historical compliance trends, weighted risk scoring, and
+          executive-ready reporting.
+        </div>
+        <div class="card__arrow">Open dashboard &rarr;</div>
+      </a>
+
+      <div class="card card--disabled">
+        <span class="card__badge card__badge--soon">Coming soon</span>
+        <div class="card__title">Zero-Day Response Pipeline</div>
+        <div class="card__desc">
+          CISA KEV feed to auto-generated osquery detection queries.
+          Closes the gap between "a vulnerability is announced" and
+          "we know which devices are affected."
+        </div>
+      </div>
+
+      <div class="card card--disabled">
+        <span class="card__badge card__badge--soon">Coming soon</span>
+        <div class="card__title">Supply Chain Hardening</div>
+        <div class="card__desc">
+          Software provenance and packaging integrity checks across
+          the enrolled fleet. SBOM-driven visibility into what's
+          actually running on every device.
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    Fleet Operations Portal v0.1.0
+  </footer>
+</body>
+</html>

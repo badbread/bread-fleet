@@ -34,7 +34,7 @@ export default function App() {
       <header className="bg-neutral-0 border-b border-neutral-150">
         <div className="max-w-3xl mx-auto px-8 py-6 flex items-center gap-4">
           <Logo size={42} className="shrink-0" />
-          <div>
+          <div className="flex-1">
             <h1 className="text-[26px] leading-tight font-semibold text-neutral-700">
               Compliance Troubleshooter
             </h1>
@@ -42,6 +42,12 @@ export default function App() {
               Look up a device. Read the findings in plain English. Fix the safe ones with one click.
             </p>
           </div>
+          <a
+            href="/"
+            className="text-[13px] text-accent hover:underline shrink-0"
+          >
+            Back to portal
+          </a>
         </div>
       </header>
 
@@ -84,7 +90,7 @@ export default function App() {
 
       <footer className="bg-neutral-0 border-t border-neutral-150">
         <div className="max-w-3xl mx-auto px-8 py-3 text-xs text-neutral-500 flex items-center justify-between">
-          <span>Operator: anonymous (auth not yet wired)</span>
+          <span>Operator: anonymous (SSO integration pending)</span>
           <span>v0.1.0</span>
         </div>
       </footer>

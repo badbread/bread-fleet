@@ -2,9 +2,20 @@
 fleet-server/.env
 fleet-server/cloudflared/*.json
 fleet-server/cloudflared/cert.pem
+compliance-troubleshooter/.env
+security-dashboard/.env
+portal/.env
+
+# TLS material for the local-HTTPS deployment shape
+fleet-server/tls/*.crt
+fleet-server/tls/*.key
+fleet-server/tls/*.pem
 
 # Runtime data: bind-mounted service state
 fleet-server/data/
+
+# Node dependencies (built inside Docker, not committed)
+node_modules/
 
 # Editor / OS cruft
 .DS_Store
@@ -25,3 +36,4 @@ Thumbs.db
 *.bak
 *.orig
 *~
+__pycache__/

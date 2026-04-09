@@ -1,0 +1,171 @@
+{
+  "policies": [
+    {
+      "id": 1,
+      "name": "full_disk_encryption",
+      "display_name": "Full disk encryption enabled",
+      "description": "FileVault (macOS), BitLocker (Windows), or LUKS (Linux) must be active. Unencrypted disks are a data breach waiting to happen if the device is lost or stolen.",
+      "severity": "critical",
+      "weight": 4,
+      "platforms": ["darwin", "windows", "ubuntu"]
+    },
+    {
+      "id": 2,
+      "name": "firewall_enabled",
+      "display_name": "Host firewall enabled",
+      "description": "The OS-level firewall must be active and blocking unsolicited inbound connections. Defense in depth even on managed networks.",
+      "severity": "critical",
+      "weight": 4,
+      "platforms": ["darwin", "windows", "ubuntu"]
+    },
+    {
+      "id": 3,
+      "name": "os_version_current",
+      "display_name": "Operating system version current",
+      "description": "The OS must be within one minor version of the latest stable release. Older versions miss security patches and widen the attack surface.",
+      "severity": "high",
+      "weight": 3,
+      "platforms": ["darwin", "windows", "ubuntu"]
+    },
+    {
+      "id": 4,
+      "name": "ssh_key_only",
+      "display_name": "SSH key-only authentication",
+      "description": "Password-based SSH must be disabled. Key-only auth eliminates brute-force and credential-stuffing attacks against remote access.",
+      "severity": "high",
+      "weight": 3,
+      "platforms": ["darwin", "ubuntu"]
+    },
+    {
+      "id": 5,
+      "name": "gatekeeper_enabled",
+      "display_name": "Gatekeeper enabled",
+      "description": "macOS Gatekeeper must be active to verify app code signatures before execution. Prevents unsigned or tampered binaries from running.",
+      "severity": "high",
+      "weight": 3,
+      "platforms": ["darwin"]
+    },
+    {
+      "id": 6,
+      "name": "auditd_running",
+      "display_name": "Audit daemon running",
+      "description": "auditd must be installed and active on Linux hosts. Without it, there is no kernel-level audit trail for security forensics.",
+      "severity": "high",
+      "weight": 3,
+      "platforms": ["ubuntu"]
+    },
+    {
+      "id": 7,
+      "name": "automatic_updates",
+      "display_name": "Automatic updates enabled",
+      "description": "The OS automatic update mechanism must be enabled. Manual-only patching leads to drift and missed critical patches.",
+      "severity": "medium",
+      "weight": 2,
+      "platforms": ["darwin", "windows", "ubuntu"]
+    },
+    {
+      "id": 8,
+      "name": "screen_lock_timeout",
+      "display_name": "Screen lock timeout under 5 minutes",
+      "description": "The screen must lock automatically after no more than 5 minutes of inactivity. Prevents unauthorized physical access to unlocked sessions.",
+      "severity": "medium",
+      "weight": 2,
+      "platforms": ["darwin", "windows"]
+    },
+    {
+      "id": 9,
+      "name": "remote_login_disabled",
+      "display_name": "Remote login disabled on workstations",
+      "description": "Remote Desktop / Screen Sharing / VNC must be disabled on end-user workstations. Reduces lateral movement surface if a credential is compromised.",
+      "severity": "medium",
+      "weight": 2,
+      "platforms": ["darwin", "windows"]
+    },
+    {
+      "id": 10,
+      "name": "sip_enabled",
+      "display_name": "System Integrity Protection enabled",
+      "description": "macOS SIP must be active. SIP prevents even root from modifying protected system files, a critical defense against persistent malware.",
+      "severity": "high",
+      "weight": 3,
+      "platforms": ["darwin"]
+    },
+    {
+      "id": 11,
+      "name": "bluetooth_sharing_disabled",
+      "display_name": "Bluetooth sharing disabled",
+      "description": "Bluetooth file sharing must be turned off. Reduces the wireless attack surface in shared office environments.",
+      "severity": "low",
+      "weight": 1,
+      "platforms": ["darwin"]
+    },
+    {
+      "id": 12,
+      "name": "guest_account_disabled",
+      "display_name": "Guest account disabled",
+      "description": "The OS guest account must be disabled. Guest sessions can leave forensic gaps and bypass per-user audit trails.",
+      "severity": "low",
+      "weight": 1,
+      "platforms": ["darwin", "windows"]
+    },
+    {
+      "id": 13,
+      "name": "ntp_configured",
+      "display_name": "NTP time synchronization configured",
+      "description": "System clock must be synchronized via NTP. Unsynchronized clocks break certificate validation, Kerberos auth, and make forensic timelines unreliable.",
+      "severity": "low",
+      "weight": 1,
+      "platforms": ["darwin", "windows", "ubuntu"]
+    },
+    {
+      "id": 14,
+      "name": "password_complexity",
+      "display_name": "Password complexity requirements met",
+      "description": "Local account passwords must meet minimum length and complexity requirements. Weak local passwords are the first thing attackers try after initial access.",
+      "severity": "medium",
+      "weight": 2,
+      "platforms": ["darwin", "windows", "ubuntu"]
+    },
+    {
+      "id": 15,
+      "name": "usb_storage_restricted",
+      "display_name": "USB mass storage restricted",
+      "description": "Removable USB storage must be restricted or monitored. Prevents both data exfiltration and malware introduction via physical media.",
+      "severity": "medium",
+      "weight": 2,
+      "platforms": ["darwin", "windows"]
+    }
+  ],
+  "snapshots": [
+    {"date": "2026-03-10", "health_score": 72.1, "device_count": 142, "events": []},
+    {"date": "2026-03-11", "health_score": 72.4, "device_count": 142, "events": []},
+    {"date": "2026-03-12", "health_score": 72.8, "device_count": 143, "events": []},
+    {"date": "2026-03-13", "health_score": 73.1, "device_count": 143, "events": []},
+    {"date": "2026-03-14", "health_score": 73.5, "device_count": 144, "events": []},
+    {"date": "2026-03-15", "health_score": 74.0, "device_count": 144, "events": []},
+    {"date": "2026-03-16", "health_score": 74.2, "device_count": 144, "events": []},
+    {"date": "2026-03-17", "health_score": 78.6, "device_count": 145, "events": ["Bulk remediation: encryption + firewall push to 30 devices"]},
+    {"date": "2026-03-18", "health_score": 79.1, "device_count": 145, "events": []},
+    {"date": "2026-03-19", "health_score": 79.4, "device_count": 146, "events": []},
+    {"date": "2026-03-20", "health_score": 79.8, "device_count": 146, "events": []},
+    {"date": "2026-03-21", "health_score": 80.1, "device_count": 147, "events": []},
+    {"date": "2026-03-22", "health_score": 80.5, "device_count": 148, "events": []},
+    {"date": "2026-03-23", "health_score": 76.2, "device_count": 148, "events": ["New policy deployed: SSH key-only authentication"]},
+    {"date": "2026-03-24", "health_score": 76.0, "device_count": 148, "events": []},
+    {"date": "2026-03-25", "health_score": 76.8, "device_count": 149, "events": []},
+    {"date": "2026-03-26", "health_score": 77.5, "device_count": 149, "events": []},
+    {"date": "2026-03-27", "health_score": 78.4, "device_count": 149, "events": []},
+    {"date": "2026-03-28", "health_score": 79.6, "device_count": 150, "events": []},
+    {"date": "2026-03-29", "health_score": 80.8, "device_count": 150, "events": []},
+    {"date": "2026-03-30", "health_score": 81.5, "device_count": 150, "events": []},
+    {"date": "2026-03-31", "health_score": 82.3, "device_count": 150, "events": ["Patch Tuesday: macOS 15.4.1 pushed to all Macs"]},
+    {"date": "2026-04-01", "health_score": 83.7, "device_count": 150, "events": []},
+    {"date": "2026-04-02", "health_score": 84.2, "device_count": 150, "events": []},
+    {"date": "2026-04-03", "health_score": 84.9, "device_count": 151, "events": []},
+    {"date": "2026-04-04", "health_score": 85.3, "device_count": 151, "events": []},
+    {"date": "2026-04-05", "health_score": 85.8, "device_count": 152, "events": ["3 new devices enrolled (new hires)"]},
+    {"date": "2026-04-06", "health_score": 86.2, "device_count": 152, "events": []},
+    {"date": "2026-04-07", "health_score": 86.7, "device_count": 152, "events": []},
+    {"date": "2026-04-08", "health_score": 87.1, "device_count": 152, "events": []}
+  ]
+}

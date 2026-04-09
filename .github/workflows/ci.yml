@@ -7,7 +7,9 @@
 #   1. A YAML file in the repo does not pass yamllint
 #   2. The fleet-server docker-compose.yml does not resolve with placeholder
 #      env values (catches schema and variable-reference errors)
-#   3. gitleaks detects anything that looks like a secret in the diff or the
+#   3. The portal docker-compose.yml does not resolve with placeholder env
+#   4. Docker images for each module fail to build
+#   5. gitleaks detects anything that looks like a secret in the diff or the
 #      full history
 #
 # This is the same style of check an enterprise CPE team would run against
@@ -67,6 +69,48 @@ jobs:
           CLOUDFLARED_TOKEN=
           ENVEOF
           docker compose config -q
+
+  compose-validate-portal:
+    name: Docker Compose validate (portal)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate portal compose with placeholder env
+        working-directory: portal
+        run: |
+          cat > .env <<'ENVEOF'
+          FLEET_API_URL=https://fleet.lan:8080
+          FLEET_API_TOKEN=ci-placeholder-token
+          ANTHROPIC_API_KEY=
+          ANTHROPIC_MODEL=claude-sonnet-4-5
+          ENVEOF
+          docker compose config -q
+
+  docker-build:
+    name: Docker build (${{ matrix.component }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: compliance-troubleshooter-backend
+            context: compliance-troubleshooter/backend
+          - component: compliance-troubleshooter-frontend
+            context: compliance-troubleshooter/frontend
+          - component: security-dashboard-backend
+            context: security-dashboard/backend
+          - component: security-dashboard-frontend
+            context: security-dashboard/frontend
+          - component: portal
+            context: portal
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build --tag ci-${{ matrix.component }}:test ${{ matrix.context }}
 
   gitleaks:
     name: Secret scan

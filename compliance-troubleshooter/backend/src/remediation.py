@@ -72,15 +72,17 @@ async def _auditd_install(client: FleetClient, host_id: int) -> RemediationRespo
     try:
         result = await client.run_script_sync(host_id, script, timeout_seconds=120)
     except FleetClientError as exc:
+        # Fleet's error message is now surfaced verbatim in the exception
+        # text by fleet_client._extract_fleet_error_reason. Pass it through
+        # to the operator instead of substituting a generic guess. The
+        # most useful piece of information for diagnosis is what Fleet
+        # actually said, not what we think it might have meant.
         logger.warning("auditd_install fleet error on host %d: %s", host_id, exc)
         return RemediationResponse(
             outcome=RemediationOutcome.FAILED,
             message=(
-                "Fleet rejected the remediation script. The most likely "
-                "cause is that script execution is disabled in the Fleet "
-                "configuration or the device went offline before the "
-                "script could run. Escalate to engineering with the "
-                "device hostname."
+                f"The remediation could not run. {exc}. "
+                "Escalate to engineering with the device hostname."
             ),
         )
 

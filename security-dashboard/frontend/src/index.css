@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3 {
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white border border-neutral-150 rounded-lg;
+  }
+
+  .severity-badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold tracking-wide uppercase;
+  }
+  .severity-badge-low {
+    color: theme("colors.severity.low");
+    background-color: theme("colors.severity.low-bg");
+  }
+  .severity-badge-medium {
+    color: theme("colors.severity.medium");
+    background-color: theme("colors.severity.medium-bg");
+  }
+  .severity-badge-high {
+    color: theme("colors.severity.high");
+    background-color: theme("colors.severity.high-bg");
+  }
+  .severity-badge-critical {
+    color: theme("colors.severity.critical");
+    background-color: theme("colors.severity.critical-bg");
+  }
+}

@@ -1,0 +1,43 @@
+# ============================================================================
+# Security Posture Dashboard: standalone Compose stack for local dev.
+#
+# The portal/docker-compose.yml is the deployment compose that includes
+# this alongside the troubleshooter behind the portal gateway. This
+# file is for running the dashboard in isolation during development.
+# ============================================================================
+
+services:
+
+  backend:
+    build:
+      context: ./backend
+    container_name: security-dashboard-backend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8089:8089"
+    networks:
+      - dashboard-net
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8089/healthz').read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: security-dashboard-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5174:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - dashboard-net
+
+networks:
+  dashboard-net:
+    driver: bridge
+    name: dashboard-net

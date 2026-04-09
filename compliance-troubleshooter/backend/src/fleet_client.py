@@ -51,12 +51,15 @@ class FleetClient:
         self._base_url = settings.fleet_api_url.rstrip("/")
         self._token = settings.fleet_api_token
 
-        # The Fleet deployment in this repo runs over plain HTTP because
-        # of the LAN-only ingress decision in ADR-0003. verify=False is
-        # therefore unnecessary; we just talk HTTP. At scale, this would
-        # be HTTPS with the Cloudflare-managed cert and verify=True.
+        # ADR-0006 documents why Fleet runs with a self-signed cert on
+        # the LAN. verify=False is correct here because the cert is
+        # pinned by deployment rather than validated by a public CA.
+        # At enterprise scale this would be verify=True against a cert
+        # signed by a real CA (or by an internal CA the container
+        # trusts via a mounted ca-bundle).
         self._client = httpx.AsyncClient(
             timeout=httpx.Timeout(10.0, connect=5.0),
+            verify=False,
             headers={
                 "Authorization": f"Bearer {self._token}",
                 "Accept": "application/json",
@@ -162,10 +165,18 @@ class FleetClient:
         Fleet's raw execution result for the route handler to translate
         into a RemediationResponse.
 
-        ASSUMPTION: scripts are enabled in the Fleet config (we set
-        scripts_disabled: false in gitops/default.yml). At enterprise
-        scale this is gated behind a per-team policy and per-script
-        approval workflow.
+        Two prerequisites Fleet enforces here, both of which fail with
+        HTTP 422 and a specific reason in the response body:
+          1. Server config must have scripts_disabled = false (we set
+             this in gitops/default.yml).
+          2. The fleetd agent on the target host must have been built
+             with --enable-scripts. This is a per-package decision made
+             at `fleetctl package` time, not a server-side toggle.
+
+        At enterprise scale, both of these are guaranteed by the
+        deployment pipeline (policy that says "all production hosts
+        must run a script-enabled fleetd build") and the remediation
+        is gated behind a per-script approval workflow.
         """
         url = f"{self._base_url}/api/latest/fleet/scripts/run/sync"
         try:
@@ -180,9 +191,22 @@ class FleetClient:
             )
             resp.raise_for_status()
         except httpx.HTTPStatusError as exc:
-            logger.warning("fleet script execution failed: %s", exc)
+            # Surface Fleet's actual error reason if it provided one.
+            # Fleet returns a structured body like:
+            #   {"message": "...", "errors": [{"name": "...", "reason": "..."}]}
+            # The reason is the part the operator actually needs to read.
+            reason = _extract_fleet_error_reason(exc.response)
+            logger.warning(
+                "fleet script execution failed: HTTP %d, reason=%s",
+                exc.response.status_code,
+                reason or "(no reason returned)",
+            )
+            if reason:
+                raise FleetClientError(
+                    f"Fleet rejected the script: {reason}"
+                ) from exc
             raise FleetClientError(
-                f"Fleet script execution failed: HTTP {exc.response.status_code}"
+                f"Fleet rejected the script with HTTP {exc.response.status_code}"
             ) from exc
         except httpx.HTTPError as exc:
             logger.warning("fleet script execution network error: %s", exc)
@@ -194,6 +218,28 @@ class FleetClient:
 # ----------------------------------------------------------------------
 # Helpers used by the route handlers and the translator
 # ----------------------------------------------------------------------
+
+
+def _extract_fleet_error_reason(response: httpx.Response) -> Optional[str]:
+    """Pull the human-readable reason out of a Fleet error response.
+
+    Fleet's REST API returns errors as:
+        {"message": "<top-level>", "errors": [{"name": "...", "reason": "..."}]}
+
+    The 'reason' field is the part with the actionable detail; the top
+    level 'message' is usually just the HTTP status name. Return the
+    first reason found, or None if the response isn't parseable.
+    """
+    try:
+        body = response.json()
+    except Exception:
+        return None
+    errors = body.get("errors") if isinstance(body, dict) else None
+    if isinstance(errors, list) and errors:
+        first = errors[0]
+        if isinstance(first, dict):
+            return first.get("reason")
+    return body.get("message") if isinstance(body, dict) else None
 
 
 def failing_policies(host: FleetHost) -> list[FleetPolicy]:

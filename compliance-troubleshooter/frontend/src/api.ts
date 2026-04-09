@@ -2,6 +2,11 @@
 // Errors are surfaced as thrown Error instances with the backend's
 // detail message attached so the components can render them in their
 // error states.
+//
+// Same-origin design: the portal gateway proxies /compliance/api/ to
+// the backend. API paths are anchored to Vite's BASE_URL so the same
+// code works both behind the portal (/compliance/api/...) and in
+// standalone dev (/api/...).
 
 import type {
   HostCompliance,
@@ -9,11 +14,7 @@ import type {
   RemediationResponse,
 } from "./types";
 
-// Backend URL. Baked at build time via Vite's env var injection. The
-// dev server uses the value from .env in the frontend directory; the
-// production build uses the VITE_BACKEND_URL build arg from
-// docker-compose.yml.
-const BACKEND = (import.meta.env.VITE_BACKEND_URL as string) ?? "http://localhost:8088";
+const BASE = import.meta.env.BASE_URL;
 
 async function jsonOr(throwOn: Response): Promise<any> {
   if (!throwOn.ok) {
@@ -30,7 +31,7 @@ async function jsonOr(throwOn: Response): Promise<any> {
 }
 
 export async function searchHosts(query: string): Promise<HostSearchResult[]> {
-  const url = new URL(`${BACKEND}/api/hosts/search`);
+  const url = new URL(`${BASE}api/hosts/search`, window.location.origin);
   url.searchParams.set("q", query);
   const r = await fetch(url.toString());
   const body = await jsonOr(r);
@@ -38,7 +39,7 @@ export async function searchHosts(query: string): Promise<HostSearchResult[]> {
 }
 
 export async function getHostCompliance(hostname: string): Promise<HostCompliance> {
-  const r = await fetch(`${BACKEND}/api/hosts/${encodeURIComponent(hostname)}/compliance`);
+  const r = await fetch(`${BASE}api/hosts/${encodeURIComponent(hostname)}/compliance`);
   return jsonOr(r);
 }
 
@@ -47,7 +48,7 @@ export async function runRemediation(
   remediationId: string,
 ): Promise<RemediationResponse> {
   const r = await fetch(
-    `${BACKEND}/api/hosts/${encodeURIComponent(hostname)}/remediate/${encodeURIComponent(remediationId)}`,
+    `${BASE}api/hosts/${encodeURIComponent(hostname)}/remediate/${encodeURIComponent(remediationId)}`,
     { method: "POST" },
   );
   return jsonOr(r);

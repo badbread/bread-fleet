@@ -139,13 +139,19 @@ _STATIC_TRANSLATIONS: dict[str, dict] = {
             "A device without auditd is a blind spot."
         ),
         "fix_steps": [
-            "Click Install audit logging below.",
-            "The install takes about 30 seconds.",
+            "Ask the user to open a terminal on the device.",
+            "Have them run: sudo apt-get update && sudo apt-get install -y auditd audispd-plugins",
+            "The install takes about 30 seconds and does not require a reboot.",
             "Click Re-check to confirm the package is installed and the policy turns green.",
         ],
         "severity": Severity.MEDIUM,
         "support_can_fix_themselves": True,
-        "automated_remediation_id": "auditd_install",
+        # Automated remediation is intentionally disabled. ADR-0006
+        # documents the investigation: Fleet's script execution API
+        # requires orbit to report the scripts_enabled capability, which
+        # does not reliably populate in self-signed-cert deployments.
+        # The manual path in fix_steps above is the reliable fallback.
+        "automated_remediation_id": None,
     },
     "CIS 4.2.3 syslog file permissions": {
         "summary": (
