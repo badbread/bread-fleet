@@ -10,6 +10,7 @@ import type {
   DeviceRisk,
 } from "./types";
 import { getSummary, getTrend, getPolicies, getDevices } from "./api";
+import Logo from "./components/Logo";
 import HealthScore from "./components/HealthScore";
 import ComplianceTrend from "./components/ComplianceTrend";
 import PlatformBreakdown from "./components/PlatformBreakdown";
@@ -60,13 +61,16 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-neutral-50">
       <header className="bg-white border-b border-neutral-150">
         <div className="max-w-6xl mx-auto px-8 py-5 flex items-center justify-between">
-          <div>
+          <div className="flex items-center gap-4">
+            <Logo size={36} className="shrink-0" />
+            <div>
             <h1 className="text-[22px] leading-tight font-semibold text-neutral-700">
               Security Posture Dashboard
             </h1>
             <p className="mt-1 text-[13px] text-neutral-500">
               Fleet-wide compliance health, trends, and risk concentration
             </p>
+            </div>
           </div>
           <a
             href="/"

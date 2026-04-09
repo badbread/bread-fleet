@@ -4,6 +4,7 @@
 
 import { useState } from "react";
 import type { MappedKev, DeployedPolicy } from "./types";
+import Logo from "./components/Logo";
 import KevFeed from "./components/KevFeed";
 import KevDetail from "./components/KevDetail";
 import DeployedPolicies from "./components/DeployedPolicies";
@@ -20,13 +21,16 @@ export default function App() {
     <div className="min-h-screen flex flex-col bg-neutral-50">
       <header className="bg-white border-b border-neutral-150">
         <div className="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-[22px] leading-tight font-semibold text-neutral-700">
-              Zero-Day Response Pipeline
-            </h1>
-            <p className="mt-1 text-[13px] text-neutral-500">
-              CISA KEV to Fleet detection policies — curated registry with Claude AI assist
-            </p>
+          <div className="flex items-center gap-4">
+            <Logo size={36} className="shrink-0" />
+            <div>
+              <h1 className="text-[22px] leading-tight font-semibold text-neutral-700">
+                Zero-Day Response Pipeline
+              </h1>
+              <p className="mt-1 text-[13px] text-neutral-500">
+                CISA KEV to Fleet detection policies — curated registry with Claude AI assist
+              </p>
+            </div>
           </div>
           <a
             href="/"
