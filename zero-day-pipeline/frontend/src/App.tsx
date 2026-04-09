@@ -44,7 +44,7 @@ export default function App() {
             <div className="lg:col-span-3 card overflow-hidden">
               <KevFeed
                 onSelect={setSelected}
-                selectedCve={selected?.kev.cve_id ?? null}
+                selectedCve={selected?.kev.cveID ?? null}
               />
             </div>
 

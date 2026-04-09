@@ -1,15 +1,15 @@
 // Response shapes from the zero-day pipeline backend.
 
 export interface KevEntry {
-  cve_id: string;
-  vendor_project: string;
+  cveID: string;
+  vendorProject: string;
   product: string;
-  vulnerability_name: string;
-  date_added: string;
-  short_description: string;
-  required_action: string;
-  due_date: string;
-  known_ransomware_campaign_use: string;
+  vulnerabilityName: string;
+  dateAdded: string;
+  shortDescription: string;
+  requiredAction: string;
+  dueDate: string;
+  knownRansomwareCampaignUse: string;
   notes: string;
 }
 

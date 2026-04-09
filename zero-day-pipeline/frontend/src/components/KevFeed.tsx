@@ -44,9 +44,9 @@ export default function KevFeed({ onSelect, selectedCve }: Props) {
   }, [loadFeed]);
 
   const handleSelect = async (entry: KevEntry) => {
-    setMappingEntry(entry.cve_id);
+    setMappingEntry(entry.cveID);
     try {
-      const mapped = await mapKev(entry.cve_id);
+      const mapped = await mapKev(entry.cveID);
       onSelect(mapped);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -108,25 +108,25 @@ export default function KevFeed({ onSelect, selectedCve }: Props) {
         {!loading &&
           entries.map((entry) => (
             <button
-              key={entry.cve_id}
+              key={entry.cveID}
               onClick={() => handleSelect(entry)}
-              disabled={mappingEntry === entry.cve_id}
+              disabled={mappingEntry === entry.cveID}
               className={`w-full text-left px-4 py-3 border-b border-neutral-100 hover:bg-neutral-50 transition-colors ${
-                selectedCve === entry.cve_id ? "bg-accent-subtle" : ""
-              } ${mappingEntry === entry.cve_id ? "opacity-50" : ""}`}
+                selectedCve === entry.cveID ? "bg-accent-subtle" : ""
+              } ${mappingEntry === entry.cveID ? "opacity-50" : ""}`}
             >
               <div className="flex items-center justify-between">
                 <span className="text-[13px] font-medium text-neutral-700">
-                  {entry.cve_id}
+                  {entry.cveID}
                 </span>
                 <span className="text-[11px] text-neutral-500">
-                  {entry.date_added}
+                  {entry.dateAdded}
                 </span>
               </div>
               <p className="text-[12px] text-neutral-500 mt-0.5 truncate">
-                {entry.vendor_project} — {entry.product}
+                {entry.vendorProject} — {entry.product}
               </p>
-              {entry.known_ransomware_campaign_use === "Known" && (
+              {entry.knownRansomwareCampaignUse === "Known" && (
                 <span className="inline-block mt-1 px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-severity-critical-bg text-severity-critical rounded">
                   Ransomware
                 </span>

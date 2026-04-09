@@ -24,7 +24,7 @@ export default function KevDetail({ mapped, onDeployed }: Props) {
     setDeploying(true);
     setError(null);
     try {
-      const result = await deployKev(kev.cve_id, dryRun);
+      const result = await deployKev(kev.cveID, dryRun);
       setLastResult(result);
       onDeployed(result);
     } catch (e) {
@@ -39,24 +39,24 @@ export default function KevDetail({ mapped, onDeployed }: Props) {
       <div>
         <div className="flex items-center gap-2 mb-2">
           <h2 className="text-[16px] font-semibold text-neutral-700">
-            {kev.cve_id}
+            {kev.cveID}
           </h2>
           <MappingBadge status={status} />
-          {kev.known_ransomware_campaign_use === "Known" && (
+          {kev.knownRansomwareCampaignUse === "Known" && (
             <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-severity-critical-bg text-severity-critical rounded">
               Ransomware
             </span>
           )}
         </div>
         <p className="text-[13px] text-neutral-700 leading-relaxed">
-          {kev.short_description}
+          {kev.shortDescription}
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-[12px]">
         <div>
           <span className="text-neutral-500">Vendor</span>
-          <p className="text-neutral-700 font-medium">{kev.vendor_project}</p>
+          <p className="text-neutral-700 font-medium">{kev.vendorProject}</p>
         </div>
         <div>
           <span className="text-neutral-500">Product</span>
@@ -64,18 +64,18 @@ export default function KevDetail({ mapped, onDeployed }: Props) {
         </div>
         <div>
           <span className="text-neutral-500">Added to KEV</span>
-          <p className="text-neutral-700 font-medium">{kev.date_added}</p>
+          <p className="text-neutral-700 font-medium">{kev.dateAdded}</p>
         </div>
         <div>
           <span className="text-neutral-500">Due date</span>
-          <p className="text-neutral-700 font-medium">{kev.due_date}</p>
+          <p className="text-neutral-700 font-medium">{kev.dueDate}</p>
         </div>
       </div>
 
       <div>
         <p className="text-[12px] text-neutral-500 mb-1">Required action</p>
         <p className="text-[13px] text-neutral-700 leading-relaxed">
-          {kev.required_action}
+          {kev.requiredAction}
         </p>
       </div>
 
