@@ -1,6 +1,7 @@
 // Left panel: KEV feed browser with search, date filter, and
 // ransomware toggle. Each entry shows CVE ID, product, date added,
-// and a colored dot indicating mapping status.
+// and a green dot for entries likely to be mappable (matching known
+// product families in the curated registry).
 
 import { useState, useEffect, useCallback } from "react";
 import type { KevEntry, MappedKev } from "../types";
@@ -11,13 +12,32 @@ interface Props {
   selectedCve: string | null;
 }
 
+// Client-side hint: product keywords that the backend registry can
+// map. This avoids calling /map for every entry in the feed. The
+// list mirrors registry.py's keys.
+const MAPPABLE_HINTS = [
+  "openssl", "curl", "sudo", "polkit", "systemd",
+  "apache", "http server", "nginx",
+  "openssh", "samba",
+  "chromium", "chrome", "firefox",
+  "python", "node.js", "java",
+  "postgresql", "mysql", "redis",
+  "bind", "docker", "linux kernel", "kernel",
+];
+
+function likelyMappable(entry: KevEntry): boolean {
+  const vp = entry.vendorProject.toLowerCase();
+  const p = entry.product.toLowerCase();
+  return MAPPABLE_HINTS.some((hint) => vp.includes(hint) || p.includes(hint));
+}
+
 export default function KevFeed({ onSelect, selectedCve }: Props) {
   const [entries, setEntries] = useState<KevEntry[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [days, setDays] = useState<number>(90);
+  const [days, setDays] = useState<number>(365);
   const [ransomwareOnly, setRansomwareOnly] = useState(false);
   const [mappingEntry, setMappingEntry] = useState<string | null>(null);
 
@@ -30,7 +50,14 @@ export default function KevFeed({ onSelect, selectedCve }: Props) {
         product: search || undefined,
         ransomware_only: ransomwareOnly,
       });
-      setEntries(resp.entries);
+      // Sort: likely mappable entries first, then by date.
+      const sorted = [...resp.entries].sort((a, b) => {
+        const aM = likelyMappable(a) ? 0 : 1;
+        const bM = likelyMappable(b) ? 0 : 1;
+        if (aM !== bM) return aM - bM;
+        return b.dateAdded.localeCompare(a.dateAdded);
+      });
+      setEntries(sorted);
       setTotal(resp.total);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -54,6 +81,8 @@ export default function KevFeed({ onSelect, selectedCve }: Props) {
       setMappingEntry(null);
     }
   };
+
+  const mappableCount = entries.filter(likelyMappable).length;
 
   return (
     <div className="flex flex-col h-full">
@@ -90,7 +119,8 @@ export default function KevFeed({ onSelect, selectedCve }: Props) {
           </label>
         </div>
         <p className="text-[11px] text-neutral-500">
-          {total} {total === 1 ? "entry" : "entries"}
+          {total} entries &middot;{" "}
+          <span className="text-mapping-mapped font-medium">{mappableCount} mappable</span>
         </p>
       </div>
 
@@ -106,33 +136,42 @@ export default function KevFeed({ onSelect, selectedCve }: Props) {
           </p>
         )}
         {!loading &&
-          entries.map((entry) => (
-            <button
-              key={entry.cveID}
-              onClick={() => handleSelect(entry)}
-              disabled={mappingEntry === entry.cveID}
-              className={`w-full text-left px-4 py-3 border-b border-neutral-100 hover:bg-neutral-50 transition-colors ${
-                selectedCve === entry.cveID ? "bg-accent-subtle" : ""
-              } ${mappingEntry === entry.cveID ? "opacity-50" : ""}`}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[13px] font-medium text-neutral-700">
-                  {entry.cveID}
-                </span>
-                <span className="text-[11px] text-neutral-500">
-                  {entry.dateAdded}
-                </span>
-              </div>
-              <p className="text-[12px] text-neutral-500 mt-0.5 truncate">
-                {entry.vendorProject} — {entry.product}
-              </p>
-              {entry.knownRansomwareCampaignUse === "Known" && (
-                <span className="inline-block mt-1 px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-severity-critical-bg text-severity-critical rounded">
-                  Ransomware
-                </span>
-              )}
-            </button>
-          ))}
+          entries.map((entry) => {
+            const mappable = likelyMappable(entry);
+            return (
+              <button
+                key={entry.cveID}
+                onClick={() => handleSelect(entry)}
+                disabled={mappingEntry === entry.cveID}
+                className={`w-full text-left px-4 py-3 border-b border-neutral-100 hover:bg-neutral-50 transition-colors ${
+                  selectedCve === entry.cveID ? "bg-accent-subtle" : ""
+                } ${mappingEntry === entry.cveID ? "opacity-50" : ""}`}
+              >
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-2 h-2 rounded-full shrink-0 ${
+                      mappable ? "bg-mapping-mapped" : "bg-neutral-300"
+                    }`}
+                    title={mappable ? "Likely mappable to osquery" : "May not be detectable via osquery"}
+                  />
+                  <span className="text-[13px] font-medium text-neutral-700 flex-1">
+                    {entry.cveID}
+                  </span>
+                  <span className="text-[11px] text-neutral-500 shrink-0">
+                    {entry.dateAdded}
+                  </span>
+                </div>
+                <p className="text-[12px] text-neutral-500 mt-0.5 truncate pl-4">
+                  {entry.vendorProject} — {entry.product}
+                </p>
+                {entry.knownRansomwareCampaignUse === "Known" && (
+                  <span className="inline-block mt-1 ml-4 px-1.5 py-0.5 text-[10px] font-semibold uppercase bg-severity-critical-bg text-severity-critical rounded">
+                    Ransomware
+                  </span>
+                )}
+              </button>
+            );
+          })}
       </div>
     </div>
   );
