@@ -54,7 +54,7 @@ export default function HostSearch({ onPickHost }: Props) {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="e.g. mrlinux1, mrlinux2"
+          placeholder="mrlinux2 (demo device with failing policies)"
           className="w-full px-3 py-1.5 bg-neutral-0 border border-neutral-200 rounded-md text-[14px] text-neutral-700 placeholder:text-neutral-300 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
           autoFocus
         />

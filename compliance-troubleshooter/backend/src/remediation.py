@@ -145,10 +145,9 @@ async def _not_implemented(
 # remediation_id -> handler
 REGISTRY: dict[str, RemediationHandler] = {
     "auditd_install": _auditd_install,
-    # Future entries land here. Each one would also get a
-    # corresponding automated_remediation_id field set in the
-    # translator's static dict (and Claude prompt would learn to
-    # set it for live translations).
+    "cramfs_disable": _not_implemented,
+    "bootloader_perms": _not_implemented,
+    "ipv4_forward_disable": _not_implemented,
 }
 
 
