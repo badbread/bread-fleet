@@ -69,16 +69,24 @@ export default function SimulatedConsole({ remediationId, hostname, onComplete }
 
   useEffect(() => {
     let i = 0;
-    const timer = setInterval(() => {
+    let timeout: ReturnType<typeof setTimeout>;
+
+    const addLine = () => {
       if (i < script.length) {
         setLines((prev) => [...prev, script[i]]);
         i++;
+        // Commands ($ lines) take longer — simulates typing + execution.
+        // Output lines appear faster. Empty lines pause briefly.
+        const line = script[i - 1];
+        const delay = line.startsWith("$") ? 1200 : line === "" ? 600 : 800;
+        timeout = setTimeout(addLine, delay);
       } else {
-        clearInterval(timer);
         setDone(true);
       }
-    }, 400);
-    return () => clearInterval(timer);
+    };
+
+    timeout = setTimeout(addLine, 500);
+    return () => clearTimeout(timeout);
   }, [script]);
 
   useEffect(() => {
@@ -123,19 +131,21 @@ export default function SimulatedConsole({ remediationId, hostname, onComplete }
 
       {/* Disclaimer */}
       {done && (
-        <div className="bg-neutral-50 border-t border-neutral-200 px-4 py-3">
-          <p className="text-[12px] text-neutral-500 leading-relaxed">
-            <span className="font-semibold text-neutral-700">Simulated execution.</span>{" "}
-            Fleet Free does not expose the script execution API to service accounts.
-            In production (Fleet Premium), this runs as a real shell script dispatched
-            through Fleet's agent and the output streams back live. The remediation
-            registry and API architecture are identical — only the dispatch layer changes.
+        <div className="bg-severity-medium-bg border-t border-neutral-200 px-4 py-3">
+          <p className="text-[13px] text-neutral-700 leading-relaxed">
+            <span className="font-semibold">This was a simulated execution.</span>{" "}
+            Fleet's script execution API requires the host's orbit agent to report
+            the <code className="text-[12px] bg-white px-1 rounded">scripts_enabled</code> capability,
+            which is blocked by a self-signed certificate limitation in this deployment
+            (see <span className="font-medium">ADR-0006</span>). In production with a
+            real CA certificate, the same remediation runs as a live shell script
+            dispatched through Fleet's agent — the architecture is identical.
           </p>
           <button
             onClick={onComplete}
-            className="mt-2 text-[12px] text-accent hover:underline font-medium"
+            className="mt-3 px-4 py-1.5 text-[13px] font-medium bg-accent text-white rounded-md hover:bg-accent/90 transition-colors"
           >
-            Re-check compliance →
+            Re-check compliance
           </button>
         </div>
       )}
