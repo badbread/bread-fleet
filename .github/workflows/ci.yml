@@ -1,0 +1,100 @@
+# ============================================================================
+# CI for bread-fleet
+#
+# Runs on every push to main and every pull request targeting main. Fails
+# the check if any of the following are true:
+#
+#   1. A YAML file in the repo does not pass yamllint
+#   2. The fleet-server docker-compose.yml does not resolve with placeholder
+#      env values (catches schema and variable-reference errors)
+#   3. gitleaks detects anything that looks like a secret in the diff or the
+#      full history
+#
+# This is the same style of check an enterprise CPE team would run against
+# a GitOps-managed Fleet repository: cheap, fast, and strict enough to
+# prevent accidents before they land in main.
+# ============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel older runs on the same ref when a new commit pushes. Saves minutes.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  yamllint:
+    name: YAML lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install yamllint
+        run: pip install --quiet yamllint
+
+      - name: Lint all YAML files
+        run: yamllint -s .
+
+  compose-validate:
+    name: Docker Compose validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate fleet-server compose with placeholder env
+        working-directory: fleet-server
+        run: |
+          # Compose variable substitution fails if the variables are unset,
+          # even when validating. Provide harmless placeholders matching the
+          # same schema as .env.example, then run compose config to parse
+          # and resolve the file.
+          cat > .env <<'ENVEOF'
+          FLEET_VERSION=v4.70.0
+          MYSQL_ROOT_PASSWORD=ci-placeholder-root-password
+          MYSQL_DATABASE=fleet
+          MYSQL_USER=fleet
+          MYSQL_PASSWORD=ci-placeholder-user-password
+          FLEET_JWT_KEY=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+          FLEET_SERVER_URL=http://localhost:8080
+          CLOUDFLARED_TOKEN=
+          ENVEOF
+          docker compose config -q
+
+  gitleaks:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history so gitleaks can scan every commit, not just the
+          # current working tree. Catches secrets that landed in an old
+          # commit and were later removed from HEAD.
+          fetch-depth: 0
+
+      # The gitleaks-action wrapper computes a diff range between 'before'
+      # and 'after' SHAs from the push event. On a force-push that rewrites
+      # history back to a new root commit, that diff range is undefined and
+      # the action fails with "unknown revision". Calling the gitleaks binary
+      # directly with `gitleaks git` scans the full history every time and
+      # avoids the wrapper's diff-range logic entirely.
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          curl -fsSL -o /tmp/gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp
+          sudo install -m 0755 /tmp/gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Scan full git history
+        run: gitleaks git --verbose --no-banner
