@@ -105,6 +105,10 @@ jobs:
             context: security-dashboard/frontend
           - component: portal
             context: portal
+          - component: zero-day-pipeline-backend
+            context: zero-day-pipeline/backend
+          - component: zero-day-pipeline-frontend
+            context: zero-day-pipeline/frontend
     steps:
       - name: Checkout
         uses: actions/checkout@v4

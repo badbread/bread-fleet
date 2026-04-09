@@ -55,9 +55,9 @@ already cover.
 |---|---|
 | **Compliance Troubleshooter** | React + FastAPI + Claude API tool that translates Fleet policy failures into plain English for support staff, with one-click remediation paths and an audit log. Static fallback dict lets it run without an API key. See [`compliance-troubleshooter/`](compliance-troubleshooter/) and [ADR-0005](docs/adr/0005-compliance-troubleshooter-design.md). |
 | **Security Posture Dashboard** | React + Recharts + FastAPI dashboard showing fleet-wide compliance health: weighted risk scoring, 30-day trend with event annotations, platform breakdown, top failing policies, and risk concentration. Uses synthetic data scaled to ~150 devices. See [`security-dashboard/`](security-dashboard/) and [ADR-0007](docs/adr/0007-security-posture-dashboard.md). |
-| **Portal Gateway** | nginx reverse proxy serving a landing page at the root and routing each module by path prefix (`/compliance/`, `/dashboard/`). Designed to sit behind a Cloudflare Tunnel with Access email-gate. See [`portal/`](portal/). |
+| **Portal Gateway** | nginx reverse proxy serving a landing page at the root and routing each module by path prefix (`/compliance/`, `/dashboard/`, `/zero-day/`). Designed to sit behind a Cloudflare Tunnel with Access email-gate. See [`portal/`](portal/). |
 | **Fleet Server Stack** | Docker Compose stack for Fleet, MySQL 8.0, Redis 7, and an optional Cloudflare Tunnel. TLS-terminated on the LAN with a self-signed cert for orbit HTTPS. See [`fleet-server/`](fleet-server/) and ADRs [0001](docs/adr/0001-fleet-deployment-architecture.md)–[0003](docs/adr/0003-lan-only-ingress.md). |
-| **Zero-Day Pipeline** | Service that polls CISA KEV, parses indicators of compromise, generates matching osquery SQL, deploys it to Fleet as a policy, and fires a webhook alert when any host matches. Closes the KEV-vs-NVD lag. *(planned)* |
+| **Zero-Day Pipeline** | React + FastAPI tool that fetches the CISA KEV catalog, maps entries to osquery detection queries via a curated product registry (~20 Linux packages) with Claude AI as a reviewed fallback, and deploys the generated queries as Fleet policies. Honest about coverage: ~15-20% of KEV entries are mappable; the rest are network appliances, SaaS, or mobile. See [`zero-day-pipeline/`](zero-day-pipeline/) and [ADR-0008](docs/adr/0008-zero-day-response-pipeline.md). |
 | **CIS demo tooling** | `break.sh` / `restore.sh` pair for deliberately failing 11 CIS Ubuntu controls on a throwaway test host. Used for regression-testing the policy set and live-demoing the compliance dashboard. Three-layer safety gate prevents accidental runs. |
 | **GitOps deployment** | Single-file `apply.sh` that scp's the version-controlled YAML to the Fleet host, sources runtime secrets from a gitignored `.env`, and runs `fleetctl gitops`. Templated env-var substitution keeps secrets out of the repo. |
 | **Baseline content** | 13 osquery queries and 12 CIS Ubuntu 24.04 policies in `gitops/default.yml`. Warn-only posture with conditional logic that handles both rsyslog and journald-only hosts. The CIS 4.2.3 query in particular went through one round of "the original SQL was too strict, here's what the spec actually accepts" and is documented as a debugging story. |
@@ -74,7 +74,10 @@ flowchart LR
             CT_BE[troubleshooter<br/>backend]:::tooling
             SD_FE[dashboard<br/>frontend]:::tooling
             SD_BE[dashboard<br/>backend]:::tooling
+            ZD_FE[zero-day pipeline<br/>frontend]:::tooling
+            ZD_BE[zero-day pipeline<br/>backend]:::tooling
         end
+        CISA[CISA KEV<br/>feed]:::external
         CFD_WP[cloudflared]:::optional
     end
 
@@ -98,8 +101,12 @@ flowchart LR
     PORTAL -->|"/compliance/api/*"| CT_BE
     PORTAL -->|"/dashboard/*"| SD_FE
     PORTAL -->|"/dashboard/api/*"| SD_BE
+    PORTAL -->|"/zero-day/*"| ZD_FE
+    PORTAL -->|"/zero-day/api/*"| ZD_BE
     CT_BE -->|"Fleet REST API"| FLEET
     SD_BE -.-|"synthetic data<br/>(Fleet API at scale)"| FLEET
+    ZD_BE -->|"Fleet policy API"| FLEET
+    ZD_BE -->|"fetch KEV JSON"| CISA
     OPS -->|"git -> apply.sh -> fleetctl"| FLEET
     LX -->|"osquery TLS"| FLEET
     FLEET --> MYSQL
@@ -108,6 +115,7 @@ flowchart LR
 
     classDef optional stroke-dasharray: 5 5,stroke:#888,color:#888
     classDef tooling stroke:#5b8def,stroke-width:2px
+    classDef external stroke:#D9730D,stroke-width:2px
 ```
 
 The left side is the portal stack: an nginx gateway that routes
@@ -128,6 +136,7 @@ only container exposed outside the internal bridge.
 | [0005](docs/adr/0005-compliance-troubleshooter-design.md) | Compliance Troubleshooter design (FastAPI + React + Claude API, static fallback for keyless demo, per-policy remediation registry) | Accepted |
 | [0006](docs/adr/0006-orbit-capability-reporting-investigation.md) | Orbit capability reporting limits automated remediation (self-signed cert investigation, manual-only workaround) | Accepted |
 | [0007](docs/adr/0007-security-posture-dashboard.md) | Security Posture Dashboard with synthetic data (historical trends, weighted scoring, risk concentration) | Accepted |
+| [0008](docs/adr/0008-zero-day-response-pipeline.md) | Zero-Day Response Pipeline: CISA KEV to Fleet policy with curated registry and Claude AI assist | Accepted |
 
 Each ADR follows a standard template with explicit `Alternatives Considered`,
 `Tradeoffs`, and `At Enterprise Scale` sections.

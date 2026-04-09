@@ -101,6 +101,41 @@ services:
     networks:
       - portal-internal
 
+  # --------------------------------------------------------------------------
+  # Zero-Day Response Pipeline: live KEV data + curated registry.
+  # --------------------------------------------------------------------------
+  zero-day-pipeline-backend:
+    build:
+      context: ../zero-day-pipeline/backend
+    container_name: zero-day-pipeline-backend
+    restart: unless-stopped
+    environment:
+      FLEET_API_URL: ${FLEET_API_URL}
+      FLEET_API_TOKEN: ${FLEET_API_TOKEN}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-5}
+    volumes:
+      - zero-day-audit:/data
+    networks:
+      - portal-internal
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/healthz').read()"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  zero-day-pipeline-frontend:
+    build:
+      context: ../zero-day-pipeline/frontend
+    container_name: zero-day-pipeline-frontend
+    restart: unless-stopped
+    depends_on:
+      zero-day-pipeline-backend:
+        condition: service_healthy
+    networks:
+      - portal-internal
+
 networks:
   portal-internal:
     driver: bridge
@@ -115,3 +150,5 @@ networks:
 volumes:
   troubleshooter-audit:
     name: troubleshooter-audit
+  zero-day-audit:
+    name: zero-day-audit

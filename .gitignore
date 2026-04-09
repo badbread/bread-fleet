@@ -4,6 +4,7 @@ fleet-server/cloudflared/*.json
 fleet-server/cloudflared/cert.pem
 compliance-troubleshooter/.env
 security-dashboard/.env
+zero-day-pipeline/.env
 portal/.env
 
 # TLS material for the local-HTTPS deployment shape

@@ -1,0 +1,347 @@
+"""Zero-Day Response Pipeline API.
+
+Bridges the gap between CISA's Known Exploited Vulnerabilities catalog
+and Fleet's policy-based detection. Fetches the KEV feed, maps entries
+to osquery detection queries using a curated registry (with optional
+Claude AI assist), and deploys the generated queries as Fleet policies.
+
+Routes:
+  GET  /healthz                         -- liveness
+  GET  /api/kev/feed                    -- browse KEV entries with filters
+  GET  /api/kev/{cve_id}               -- single entry detail
+  POST /api/kev/{cve_id}/map           -- generate osquery SQL
+  POST /api/kev/{cve_id}/deploy        -- deploy to Fleet
+  GET  /api/policies                    -- deployed KEV policies
+  GET  /api/policies/{policy_id}/results -- host pass/fail for a policy
+  DELETE /api/policies/{policy_id}      -- remove a deployed policy
+  GET  /api/stats                       -- pipeline summary
+"""
+
+import logging
+from contextlib import asynccontextmanager
+from datetime import datetime, timezone
+from typing import Optional
+
+from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+
+from .audit import AuditAction, AuditLogger
+from .config import Settings, get_settings
+from .fleet_client import FleetClient, FleetClientError
+from .kev_client import KevClient
+from .models import (
+    DeployedPolicy,
+    DeployRequest,
+    HostResult,
+    KevFeedResponse,
+    MappedKev,
+    PipelineStats,
+)
+from . import mapper
+
+logger = logging.getLogger(__name__)
+
+# In-memory store of policies deployed through this pipeline.
+# In production this would be a database table.
+_deployed: dict[int, DeployedPolicy] = {}
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Build singletons once at startup, tear down on shutdown."""
+    settings = get_settings()
+
+    app.state.kev_client = KevClient(
+        feed_url=settings.kev_feed_url,
+        cache_ttl=settings.kev_cache_ttl_seconds,
+    )
+    app.state.fleet_client = FleetClient(
+        base_url=settings.fleet_api_url,
+        token=settings.fleet_api_token,
+    )
+    app.state.audit = AuditLogger(settings.audit_log_path)
+    app.state.settings = settings
+
+    logger.info("zero-day pipeline started, fleet=%s", settings.fleet_api_url)
+    yield
+
+    await app.state.kev_client.close()
+    await app.state.fleet_client.close()
+
+
+app = FastAPI(
+    title="Zero-Day Response Pipeline",
+    version="0.1.0",
+    lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=get_settings().cors_origins,
+    allow_methods=["GET", "POST", "DELETE"],
+    allow_headers=["Content-Type"],
+)
+
+
+# ------------------------------------------------------------------ #
+# Dependency injection helpers
+# ------------------------------------------------------------------ #
+
+def _kev(request) -> KevClient:
+    return request.app.state.kev_client
+
+def _fleet(request) -> FleetClient:
+    return request.app.state.fleet_client
+
+def _audit(request) -> AuditLogger:
+    return request.app.state.audit
+
+def _settings(request) -> Settings:
+    return request.app.state.settings
+
+
+# ------------------------------------------------------------------ #
+# Routes
+# ------------------------------------------------------------------ #
+
+@app.get("/healthz")
+async def healthz() -> dict:
+    return {"status": "ok"}
+
+
+@app.get("/api/kev/feed", response_model=KevFeedResponse)
+async def kev_feed(
+    days: Optional[int] = Query(default=None, ge=1, le=365),
+    product: Optional[str] = Query(default=None, min_length=1),
+    ransomware_only: bool = Query(default=False),
+    request=None,
+):
+    """Browse the CISA KEV catalog with optional filters."""
+    kev = _kev(request)
+    audit = _audit(request)
+
+    entries = await kev.filter_feed(
+        days=days, product=product, ransomware_only=ransomware_only,
+    )
+    audit.record(
+        AuditAction.KEV_FEED_POLL,
+        detail=f"fetched {len(entries)} entries (days={days}, product={product})",
+    )
+    return KevFeedResponse(total=len(entries), entries=entries)
+
+
+@app.get("/api/kev/{cve_id}", response_model=MappedKev)
+async def kev_detail(cve_id: str, request=None):
+    """Look up a single KEV entry and return its mapping status."""
+    kev = _kev(request)
+    settings = _settings(request)
+
+    entry = await kev.get_entry(cve_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail=f"CVE {cve_id} not found in KEV feed")
+
+    result = await mapper.map_entry(
+        entry,
+        anthropic_api_key=settings.anthropic_api_key,
+        anthropic_model=settings.anthropic_model,
+    )
+    return result
+
+
+@app.post("/api/kev/{cve_id}/map", response_model=MappedKev)
+async def map_kev(cve_id: str, request=None):
+    """Generate an osquery detection query for a KEV entry."""
+    kev = _kev(request)
+    audit = _audit(request)
+    settings = _settings(request)
+
+    entry = await kev.get_entry(cve_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail=f"CVE {cve_id} not found in KEV feed")
+
+    result = await mapper.map_entry(
+        entry,
+        anthropic_api_key=settings.anthropic_api_key,
+        anthropic_model=settings.anthropic_model,
+    )
+    audit.record(
+        AuditAction.POLICY_MAPPED,
+        cve_id=cve_id,
+        detail=f"status={result.status.value}, reason={result.mapping_reason}",
+    )
+    return result
+
+
+@app.post("/api/kev/{cve_id}/deploy", response_model=DeployedPolicy)
+async def deploy_kev(cve_id: str, body: DeployRequest, request=None):
+    """Deploy a KEV detection query as a Fleet policy.
+
+    Set dry_run=true to preview the policy without deploying it.
+    """
+    kev = _kev(request)
+    fleet = _fleet(request)
+    audit = _audit(request)
+    settings = _settings(request)
+
+    entry = await kev.get_entry(cve_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail=f"CVE {cve_id} not found in KEV feed")
+
+    mapped = await mapper.map_entry(
+        entry,
+        anthropic_api_key=settings.anthropic_api_key,
+        anthropic_model=settings.anthropic_model,
+    )
+    if not mapped.osquery_sql:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Cannot deploy: {mapped.mapping_reason}",
+        )
+
+    policy_name = f"Zero-Day: {cve_id} — {entry.product}"
+    now = datetime.now(timezone.utc).isoformat()
+
+    if body.dry_run:
+        deployed = DeployedPolicy(
+            cve_id=cve_id,
+            policy_name=policy_name,
+            osquery_sql=mapped.osquery_sql,
+            deployed_at=now,
+            dry_run=True,
+        )
+        audit.record(
+            AuditAction.POLICY_DEPLOYED,
+            cve_id=cve_id,
+            detail=f"dry run: {policy_name}",
+        )
+        return deployed
+
+    # Real deployment to Fleet.
+    try:
+        result = await fleet.create_policy(
+            name=policy_name,
+            query=mapped.osquery_sql,
+            description=(
+                f"Auto-generated detection for {cve_id}: "
+                f"{entry.short_description}\n\n"
+                f"Source: CISA KEV feed (added {entry.date_added}). "
+                f"Ransomware use: {entry.known_ransomware_campaign_use}."
+            ),
+            resolution=entry.required_action,
+            platform=mapped.platform,
+            critical=entry.known_ransomware_campaign_use == "Known",
+        )
+    except FleetClientError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    policy_data = result.get("policy", result)
+    fleet_id = policy_data.get("id")
+
+    deployed = DeployedPolicy(
+        cve_id=cve_id,
+        fleet_policy_id=fleet_id,
+        policy_name=policy_name,
+        osquery_sql=mapped.osquery_sql,
+        deployed_at=now,
+        dry_run=False,
+    )
+    if fleet_id:
+        _deployed[fleet_id] = deployed
+
+    audit.record(
+        AuditAction.POLICY_DEPLOYED,
+        cve_id=cve_id,
+        detail=f"deployed to Fleet as policy {fleet_id}: {policy_name}",
+    )
+    return deployed
+
+
+@app.get("/api/policies", response_model=list[DeployedPolicy])
+async def list_deployed(request=None):
+    """List policies deployed through this pipeline."""
+    return list(_deployed.values())
+
+
+@app.get("/api/policies/{policy_id}/results", response_model=list[HostResult])
+async def policy_results(policy_id: int, request=None):
+    """Get per-host pass/fail results for a deployed policy."""
+    fleet = _fleet(request)
+
+    try:
+        passing = await fleet.list_hosts(policy_id=policy_id, policy_status="passing")
+        failing = await fleet.list_hosts(policy_id=policy_id, policy_status="failing")
+    except FleetClientError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    results = []
+    for h in passing:
+        results.append(HostResult(
+            hostname=h.get("hostname", h.get("display_name", "unknown")),
+            status="pass",
+        ))
+    for h in failing:
+        results.append(HostResult(
+            hostname=h.get("hostname", h.get("display_name", "unknown")),
+            status="fail",
+        ))
+    return results
+
+
+@app.delete("/api/policies/{policy_id}")
+async def delete_policy(policy_id: int, request=None):
+    """Remove a deployed policy from Fleet."""
+    fleet = _fleet(request)
+    audit = _audit(request)
+
+    deployed = _deployed.get(policy_id)
+    cve_id = deployed.cve_id if deployed else "unknown"
+
+    try:
+        await fleet.delete_policy(policy_id)
+    except FleetClientError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    _deployed.pop(policy_id, None)
+    audit.record(
+        AuditAction.POLICY_DELETED,
+        cve_id=cve_id,
+        detail=f"deleted Fleet policy {policy_id}",
+    )
+    return {"status": "deleted", "policy_id": policy_id}
+
+
+@app.get("/api/stats", response_model=PipelineStats)
+async def stats(request=None):
+    """Summary statistics: how many KEV entries are mappable."""
+    kev = _kev(request)
+    settings = _settings(request)
+
+    entries = await kev.fetch_feed()
+
+    mapped = 0
+    claude_assisted = 0
+    unmappable = 0
+
+    for entry in entries:
+        result = await mapper.map_entry(
+            entry,
+            # Don't call Claude for stats — just check the registry.
+            anthropic_api_key="",
+            anthropic_model=settings.anthropic_model,
+        )
+        if result.status.value == "mapped":
+            mapped += 1
+        elif result.status.value == "claude_assisted":
+            claude_assisted += 1
+        else:
+            unmappable += 1
+
+    return PipelineStats(
+        kev_total=len(entries),
+        mapped=mapped,
+        claude_assisted=claude_assisted,
+        unmappable=unmappable,
+        deployed=len(_deployed),
+    )

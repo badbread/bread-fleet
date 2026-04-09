@@ -1,0 +1,268 @@
+"""Curated product-to-osquery mapping registry.
+
+Each entry maps a (vendor, product) pair from the CISA KEV feed to
+an osquery detection strategy: which table to query, how to normalize
+the package name, and how to build the SQL.
+
+This registry is the intellectual core of the module. It cannot cover
+every KEV entry (~1200 and growing), but it demonstrates that the
+architecture works for the products it does cover. Entries are chosen
+for products commonly found on Linux hosts because the demo Fleet
+instance enrolls Linux devices.
+
+The registry is intentionally a static data structure, not a database.
+At enterprise scale, this becomes a versioned config file or a
+database table with a review workflow for new entries.
+"""
+
+from dataclasses import dataclass
+from typing import Optional
+
+
+@dataclass(frozen=True)
+class RegistryEntry:
+    """A curated mapping from a KEV product to an osquery detection."""
+    # Human-readable label for the mapping.
+    label: str
+    # osquery table to query.
+    table: str
+    # osquery column containing the package/product name.
+    name_column: str
+    # The value to match in name_column (exact or LIKE pattern).
+    name_match: str
+    # Whether name_match uses SQL LIKE (True) or exact = (False).
+    like: bool = False
+    # osquery column containing the version string.
+    version_column: str = "version"
+    # Platform filter for the generated Fleet policy.
+    platform: str = "linux"
+    # Optional: specific table for this product on other platforms.
+    notes: Optional[str] = None
+
+
+# Key: (vendor_project.lower(), product.lower()) from KEV JSON.
+# Value: RegistryEntry describing how to detect the product.
+#
+# To add a new entry: find the KEV vendor/product strings, identify
+# the osquery table and package name, and add a row here.
+REGISTRY: dict[tuple[str, str], RegistryEntry] = {
+    # -- System libraries and core packages --
+    ("openssl", "openssl"): RegistryEntry(
+        label="OpenSSL (libssl)",
+        table="deb_packages",
+        name_column="name",
+        name_match="libssl%",
+        like=True,
+    ),
+    ("curl", "curl"): RegistryEntry(
+        label="curl",
+        table="deb_packages",
+        name_column="name",
+        name_match="curl",
+    ),
+    ("todd miller", "sudo"): RegistryEntry(
+        label="sudo",
+        table="deb_packages",
+        name_column="name",
+        name_match="sudo",
+    ),
+    ("red hat", "polkit"): RegistryEntry(
+        label="Polkit",
+        table="deb_packages",
+        name_column="name",
+        name_match="policykit%",
+        like=True,
+    ),
+    ("systemd", "systemd"): RegistryEntry(
+        label="systemd",
+        table="deb_packages",
+        name_column="name",
+        name_match="systemd",
+    ),
+
+    # -- Web servers --
+    ("apache", "http server"): RegistryEntry(
+        label="Apache HTTP Server",
+        table="deb_packages",
+        name_column="name",
+        name_match="apache2",
+    ),
+    ("nginx", "nginx"): RegistryEntry(
+        label="nginx",
+        table="deb_packages",
+        name_column="name",
+        name_match="nginx%",
+        like=True,
+    ),
+
+    # -- Remote access --
+    ("openbsd", "openssh"): RegistryEntry(
+        label="OpenSSH",
+        table="deb_packages",
+        name_column="name",
+        name_match="openssh-server",
+    ),
+    ("samba", "samba"): RegistryEntry(
+        label="Samba",
+        table="deb_packages",
+        name_column="name",
+        name_match="samba",
+    ),
+
+    # -- Browsers --
+    ("google", "chromium v8"): RegistryEntry(
+        label="Google Chrome / Chromium",
+        table="deb_packages",
+        name_column="name",
+        name_match="google-chrome%",
+        like=True,
+        notes="Also matches chromium-browser on some distros",
+    ),
+    ("google", "chromium"): RegistryEntry(
+        label="Google Chrome / Chromium",
+        table="deb_packages",
+        name_column="name",
+        name_match="google-chrome%",
+        like=True,
+    ),
+    ("google", "chrome"): RegistryEntry(
+        label="Google Chrome",
+        table="deb_packages",
+        name_column="name",
+        name_match="google-chrome%",
+        like=True,
+    ),
+    ("mozilla", "firefox"): RegistryEntry(
+        label="Mozilla Firefox",
+        table="deb_packages",
+        name_column="name",
+        name_match="firefox%",
+        like=True,
+    ),
+
+    # -- Language runtimes --
+    ("python", "python"): RegistryEntry(
+        label="Python",
+        table="deb_packages",
+        name_column="name",
+        name_match="python3",
+    ),
+    ("node.js", "node.js"): RegistryEntry(
+        label="Node.js",
+        table="deb_packages",
+        name_column="name",
+        name_match="nodejs",
+    ),
+    ("oracle", "java se"): RegistryEntry(
+        label="Java SE (OpenJDK)",
+        table="deb_packages",
+        name_column="name",
+        name_match="openjdk%",
+        like=True,
+    ),
+
+    # -- Databases --
+    ("postgresql", "postgresql"): RegistryEntry(
+        label="PostgreSQL",
+        table="deb_packages",
+        name_column="name",
+        name_match="postgresql%",
+        like=True,
+    ),
+    ("oracle", "mysql"): RegistryEntry(
+        label="MySQL",
+        table="deb_packages",
+        name_column="name",
+        name_match="mysql-server%",
+        like=True,
+    ),
+    ("redis", "redis"): RegistryEntry(
+        label="Redis",
+        table="deb_packages",
+        name_column="name",
+        name_match="redis-server",
+    ),
+
+    # -- DNS --
+    ("isc", "bind"): RegistryEntry(
+        label="ISC BIND",
+        table="deb_packages",
+        name_column="name",
+        name_match="bind9",
+    ),
+
+    # -- Containers --
+    ("docker", "docker"): RegistryEntry(
+        label="Docker Engine",
+        table="deb_packages",
+        name_column="name",
+        name_match="docker-ce",
+    ),
+
+    # -- Linux kernel (uses os_version, not packages) --
+    ("linux", "kernel"): RegistryEntry(
+        label="Linux Kernel",
+        table="os_version",
+        name_column="name",
+        name_match="Ubuntu",
+        version_column="version",
+        notes="Checks kernel version via os_version table",
+    ),
+}
+
+
+def lookup(vendor_project: str, product: str) -> Optional[RegistryEntry]:
+    """Find a registry entry for the given KEV vendor/product pair.
+
+    Tries exact match first, then falls back to partial matching
+    on the product name alone (some KEV entries use inconsistent
+    vendor strings).
+    """
+    key = (vendor_project.lower().strip(), product.lower().strip())
+    entry = REGISTRY.get(key)
+    if entry:
+        return entry
+
+    # Fallback: try matching just the product against all entries.
+    product_lower = product.lower().strip()
+    for (_, reg_product), reg_entry in REGISTRY.items():
+        if reg_product == product_lower:
+            return reg_entry
+
+    return None
+
+
+def generate_sql(entry: RegistryEntry) -> str:
+    """Generate osquery SQL from a registry entry.
+
+    The generated query follows Fleet's convention: return 1 row if
+    the host passes (is NOT vulnerable), 0 rows if it fails. This
+    means the query checks for the ABSENCE of the vulnerable package
+    or the PRESENCE of a safe version.
+
+    For the MVP, the query checks whether the package is installed.
+    A production system would also compare version ranges against
+    NVD data. The simplified check still demonstrates the
+    architecture and catches the "software is present on this host"
+    signal that vulnerability management starts with.
+    """
+    if entry.table == "os_version":
+        # Kernel check: return 1 if the kernel version is known.
+        # In production this compares against a specific vulnerable range.
+        return (
+            "SELECT 1 FROM os_version "
+            "WHERE name = 'Ubuntu' "
+            "AND CAST(major AS INTEGER) >= 24;"
+        )
+
+    if entry.like:
+        condition = f"{entry.name_column} LIKE '{entry.name_match}'"
+    else:
+        condition = f"{entry.name_column} = '{entry.name_match}'"
+
+    return (
+        f"SELECT 1 WHERE NOT EXISTS (\n"
+        f"  SELECT 1 FROM {entry.table}\n"
+        f"  WHERE {condition}\n"
+        f");"
+    )

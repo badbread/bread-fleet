@@ -16,6 +16,7 @@ stays in the tree so the reasoning history is preserved.
 | [0005](0005-compliance-troubleshooter-design.md) | Compliance Troubleshooter design (FastAPI + React + Claude API translation, JSONL audit, per-policy remediation registry) | Accepted |
 | [0006](0006-orbit-capability-reporting-investigation.md) | Orbit capability reporting limits automated remediation (self-signed cert investigation, manual-only workaround) | Accepted |
 | [0007](0007-security-posture-dashboard.md) | Security Posture Dashboard with synthetic data (historical trends, weighted scoring, risk concentration) | Accepted |
+| [0008](0008-zero-day-response-pipeline.md) | Zero-Day Response Pipeline: CISA KEV to Fleet policy with curated registry and Claude AI assist | Accepted |
 
 ## Format
 
