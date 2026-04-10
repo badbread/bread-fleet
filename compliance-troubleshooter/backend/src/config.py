@@ -66,6 +66,23 @@ class Settings(BaseSettings):
         description="Allowed CORS origin for the frontend",
     )
 
+    # Notion integration. Optional. When both are set, compliance checks
+    # and remediation actions push entries to the Notion database in real
+    # time. When unset, the troubleshooter works identically but without
+    # the Notion sync.
+    notion_api_token: Optional[str] = Field(
+        default=None,
+        description="Notion integration API token (starts with ntn_)",
+    )
+    notion_database_id: Optional[str] = Field(
+        default=None,
+        description="Notion database ID to push compliance entries to",
+    )
+    notion_portal_url: str = Field(
+        default="https://fleet.badbread.com",
+        description="Portal base URL for the Source column link",
+    )
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

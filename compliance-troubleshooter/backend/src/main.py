@@ -36,6 +36,7 @@ from .models import (
     RemediationOutcome,
     RemediationResponse,
 )
+from .notion_sync import NotionSync, fire_and_forget_notion
 from .remediation import get_handler
 from .translator import Translator
 
@@ -61,10 +62,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.fleet_client = FleetClient(settings)
     app.state.translator = Translator(settings)
     app.state.audit = AuditLogger(settings)
+    app.state.notion = NotionSync(settings)
     logger.info(
-        "compliance-troubleshooter starting (fleet=%s, claude=%s)",
+        "compliance-troubleshooter starting (fleet=%s, claude=%s, notion=%s)",
         settings.fleet_api_url,
         "enabled" if settings.anthropic_api_key else "static fallback",
+        "enabled" if settings.notion_api_token else "disabled",
     )
     try:
         yield
@@ -116,6 +119,10 @@ def _audit_dep() -> AuditLogger:
     return app.state.audit
 
 
+def _notion_dep() -> NotionSync:
+    return app.state.notion
+
+
 # ----------------------------------------------------------------------
 # Routes
 # ----------------------------------------------------------------------
@@ -157,6 +164,7 @@ async def host_compliance(
     fleet: FleetClient = Depends(_fleet_dep),
     translator: Translator = Depends(_translator_dep),
     audit: AuditLogger = Depends(_audit_dep),
+    notion: NotionSync = Depends(_notion_dep),
 ) -> HostCompliance:
     """Fetch a host's full compliance view, translated.
 
@@ -214,6 +222,19 @@ async def host_compliance(
                 automated_remediation_id=None,
             )
         translated.append(t)
+
+    # Push each failing policy to Notion in the background. Non-blocking.
+    for t in translated:
+        fire_and_forget_notion(
+            notion=notion,
+            hostname=host.hostname,
+            platform=host.platform,
+            policy_name=t.policy_name,
+            severity=t.severity.value,
+            root_cause=t.summary,
+            remediation=t.fix_steps[0] if t.fix_steps else "See troubleshooter",
+            status="Pending",
+        )
 
     return HostCompliance(
         hostname=host.hostname,

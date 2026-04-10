@@ -264,6 +264,166 @@ _STATIC_TRANSLATIONS: dict[str, dict] = {
         "escalate_to": "on-call CPE engineer",
         "automated_remediation_id": None,
     },
+    # ------------------------------------------------------------------
+    # macOS CIS policies
+    # ------------------------------------------------------------------
+    "macOS CIS 2.5.1 FileVault disk encryption enabled": {
+        "summary": (
+            "This Mac's disk is not encrypted. If the device is lost or "
+            "stolen, anyone with physical access could read every file on it."
+        ),
+        "impact": (
+            "Unencrypted laptops are one of the most common causes of "
+            "data breach notifications. Most compliance frameworks "
+            "treat missing disk encryption as a blocking finding."
+        ),
+        "fix_steps": [
+            "Open System Settings > Privacy & Security > FileVault.",
+            "Click Turn On FileVault.",
+            "Save the recovery key somewhere safe (the user will need it if they forget their password).",
+            "The Mac will restart to begin encryption. It takes 1-2 hours but the user can keep working.",
+        ],
+        "severity": Severity.CRITICAL,
+        "support_can_fix_themselves": True,
+        "automated_remediation_id": None,
+    },
+    "macOS CIS 2.2.1 firewall enabled": {
+        "summary": (
+            "The Mac's built-in firewall is turned off. Every network "
+            "service on the device is reachable from the local network."
+        ),
+        "impact": (
+            "Without the firewall, services the user may not even know "
+            "are running (screen sharing, AirDrop, file sharing) are "
+            "exposed. This is a baseline security control."
+        ),
+        "fix_steps": [
+            "Open System Settings > Network > Firewall.",
+            "Toggle the Firewall switch to On.",
+            "No restart needed. Takes effect immediately.",
+        ],
+        "severity": Severity.CRITICAL,
+        "support_can_fix_themselves": True,
+        "automated_remediation_id": None,
+    },
+    "macOS CIS 2.6.4 Gatekeeper enabled": {
+        "summary": (
+            "Gatekeeper is disabled on this Mac. The system will run "
+            "unsigned applications without warning the user."
+        ),
+        "impact": (
+            "Gatekeeper is Apple's first line of defense against "
+            "malware. Disabling it means any downloaded app runs "
+            "without code signature verification."
+        ),
+        "fix_steps": [
+            "Open System Settings > Privacy & Security.",
+            "Under 'Allow apps downloaded from', select 'App Store and identified developers'.",
+            "If that option is already selected and the policy still fails, escalate to engineering.",
+        ],
+        "severity": Severity.HIGH,
+        "support_can_fix_themselves": True,
+        "automated_remediation_id": None,
+    },
+    "macOS CIS 1.3.1 System Integrity Protection enabled": {
+        "summary": (
+            "System Integrity Protection (SIP) is disabled on this Mac. "
+            "This removes a critical OS-level defense that prevents "
+            "even administrators from modifying protected system files."
+        ),
+        "impact": (
+            "With SIP off, malware that gains admin access can modify "
+            "the operating system itself and survive reinstalls. This "
+            "is a serious finding."
+        ),
+        "fix_steps": [
+            "This cannot be fixed remotely. The user needs to restart into Recovery Mode.",
+            "Escalate to engineering. The fix requires booting to macOS Recovery (Cmd+R at startup), opening Terminal, and running 'csrutil enable'.",
+        ],
+        "severity": Severity.HIGH,
+        "support_can_fix_themselves": False,
+        "escalate_to": "on-call CPE engineer",
+        "automated_remediation_id": None,
+    },
+    "macOS CIS 2.10.1 screen lock within 5 minutes": {
+        "summary": (
+            "This Mac does not lock the screen automatically within 5 "
+            "minutes of inactivity. Someone could walk up to an "
+            "unattended device and access it."
+        ),
+        "impact": (
+            "Physical access to an unlocked device gives full access "
+            "to everything the logged-in user can reach: email, Slack, "
+            "source code, admin consoles."
+        ),
+        "fix_steps": [
+            "Open System Settings > Lock Screen.",
+            "Set 'Start Screen Saver when inactive' to 5 minutes or less.",
+            "Set 'Require password after screen saver begins' to Immediately.",
+        ],
+        "severity": Severity.MEDIUM,
+        "support_can_fix_themselves": True,
+        "automated_remediation_id": None,
+    },
+    "macOS CIS 2.3.3.1 remote login (SSH) disabled": {
+        "summary": (
+            "Remote Login (SSH) is enabled on this Mac. This allows "
+            "command-line access to the device from the network."
+        ),
+        "impact": (
+            "SSH is a powerful access vector. On a workstation it is "
+            "usually unnecessary and expands the attack surface. If "
+            "the user needs SSH for development, this may be an "
+            "approved exception."
+        ),
+        "fix_steps": [
+            "Ask the user if they need SSH for their work.",
+            "If no: Open System Settings > General > Sharing > toggle Remote Login off.",
+            "If yes: File a policy exception with the CPE team and note the business justification.",
+        ],
+        "severity": Severity.MEDIUM,
+        "support_can_fix_themselves": True,
+        "automated_remediation_id": None,
+    },
+    "macOS CIS 1.2.1 automatic updates enabled": {
+        "summary": (
+            "Automatic software updates are turned off on this Mac. "
+            "The device will not receive security patches until someone "
+            "manually checks for updates."
+        ),
+        "impact": (
+            "Devices with automatic updates disabled fall behind on "
+            "security patches. The longer they go without updating, "
+            "the more known vulnerabilities remain exploitable."
+        ),
+        "fix_steps": [
+            "Open System Settings > General > Software Update.",
+            "Click the (i) icon next to Automatic Updates.",
+            "Toggle on 'Check for updates' and 'Install macOS updates'.",
+        ],
+        "severity": Severity.MEDIUM,
+        "support_can_fix_themselves": True,
+        "automated_remediation_id": None,
+    },
+    "macOS CIS 6.1.4 guest account disabled": {
+        "summary": (
+            "The guest account is enabled on this Mac. Anyone can sit "
+            "down and use the device without credentials."
+        ),
+        "impact": (
+            "Guest sessions bypass per-user access controls and leave "
+            "gaps in audit trails. Data accessed during a guest session "
+            "may not be attributable to any individual."
+        ),
+        "fix_steps": [
+            "Open System Settings > Users & Groups.",
+            "Click Guest User.",
+            "Toggle off 'Allow guests to log in to this computer'.",
+        ],
+        "severity": Severity.LOW,
+        "support_can_fix_themselves": True,
+        "automated_remediation_id": None,
+    },
     "CIS 6.2.5 only root has UID 0": {
         "summary": (
             "There is more than one administrator-equivalent account on "

@@ -6,6 +6,7 @@ compliance-troubleshooter/.env
 security-dashboard/.env
 zero-day-pipeline/.env
 portal/.env
+notion-sync/.env
 
 # TLS material for the local-HTTPS deployment shape
 fleet-server/tls/*.crt

@@ -51,6 +51,8 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-5}
       AUDIT_LOG_PATH: /data/troubleshooter.jsonl
+      NOTION_API_TOKEN: ${NOTION_API_TOKEN:-}
+      NOTION_DATABASE_ID: ${NOTION_DATABASE_ID:-}
     volumes:
       - troubleshooter-audit:/data
     networks:

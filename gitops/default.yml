@@ -273,6 +273,141 @@ policies:
       ) = 0;
     critical: false
 
+  # --------------------------------------------------------------------------
+  # macOS CIS Benchmark policies
+  #
+  # Source: CIS Apple macOS Sequoia Benchmark Level 1. These target the
+  # darwin platform only. The Hackintosh (OpenCore) passes most of these
+  # identically to real Apple hardware because osquery reads the same
+  # system tables regardless of boot method.
+  # --------------------------------------------------------------------------
+
+  - name: "macOS CIS 2.5.1 FileVault disk encryption enabled"
+    platform: darwin
+    description: >-
+      Pass: the boot volume is encrypted via FileVault (or any FDE).
+      Uses disk_encryption joined against mounts to check the root
+      volume specifically. On a Hackintosh, FileVault may not be
+      available depending on the OpenCore configuration and T2/Secure
+      Enclave emulation.
+    resolution: >-
+      System Settings > Privacy & Security > FileVault > Turn On.
+      Requires a restart and a recovery key backup.
+    query: >-
+      SELECT 1 FROM disk_encryption de
+      JOIN mounts m ON de.name = m.device
+      WHERE m.path = '/' AND de.encrypted = 1;
+    critical: false
+
+  - name: "macOS CIS 2.2.1 firewall enabled"
+    platform: darwin
+    description: >-
+      Pass: the Application Layer Firewall (ALF) is enabled with
+      global_state >= 1. State 1 = enabled, state 2 = block all
+      incoming. Either passes. State 0 = disabled, which fails.
+    resolution: >-
+      System Settings > Network > Firewall > toggle On.
+    query: >-
+      SELECT 1 FROM alf WHERE global_state >= 1;
+    critical: false
+
+  - name: "macOS CIS 2.6.4 Gatekeeper enabled"
+    platform: darwin
+    description: >-
+      Pass: Gatekeeper app verification is enabled. Gatekeeper
+      prevents unsigned or tampered binaries from executing. On a
+      Hackintosh, SIP and Gatekeeper may be partially disabled
+      depending on the OpenCore security config.
+    resolution: >-
+      sudo spctl --master-enable. Or System Settings > Privacy &
+      Security > Allow apps from App Store and identified developers.
+    query: >-
+      SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
+    critical: false
+
+  - name: "macOS CIS 1.3.1 System Integrity Protection enabled"
+    platform: darwin
+    description: >-
+      Pass: SIP is enabled. SIP prevents even root from modifying
+      protected system files and is a critical defense against
+      persistent malware. Hackintosh builds often disable SIP via
+      OpenCore to allow kext loading, so this policy may legitimately
+      fail on the demo host.
+    resolution: >-
+      Boot to macOS Recovery (Cmd+R), open Terminal, run
+      `csrutil enable`, reboot.
+    query: >-
+      SELECT 1 FROM sip_config WHERE enabled = 1;
+    critical: false
+
+  - name: "macOS CIS 2.10.1 screen lock within 5 minutes"
+    platform: darwin
+    description: >-
+      Pass: the screensaver or display sleep activates within 300
+      seconds of idle. Checks the com.apple.screensaver preferences
+      for the idleTime key. On managed devices this would be enforced
+      via an MDM profile; on unmanaged devices it relies on the user
+      not changing the setting.
+    resolution: >-
+      System Settings > Lock Screen > set "Start Screen Saver when
+      inactive" to 5 minutes or less.
+    query: >-
+      SELECT 1 FROM managed_policies
+      WHERE domain = 'com.apple.screensaver'
+      AND name = 'idleTime'
+      AND CAST(value AS INTEGER) <= 300;
+    critical: false
+
+  - name: "macOS CIS 2.3.3.1 remote login (SSH) disabled"
+    platform: darwin
+    description: >-
+      Pass: Remote Login (SSH) is disabled. On a Hackintosh used for
+      development, SSH is likely intentionally enabled so this policy
+      will fail. That is a legitimate finding: a CPE team would
+      evaluate whether SSH is required on a per-device basis and
+      grant exceptions through a policy exception workflow.
+    resolution: >-
+      System Settings > General > Sharing > toggle Remote Login off.
+      Or: sudo systemsetup -setremotelogin off.
+    query: >-
+      SELECT 1 FROM sharing_preferences WHERE remote_login = 0;
+    critical: false
+
+  - name: "macOS CIS 1.2.1 automatic updates enabled"
+    platform: darwin
+    description: >-
+      Pass: macOS Software Update automatic check is enabled. This
+      checks the SoftwareUpdate preferences domain. On a Hackintosh,
+      automatic updates should typically be disabled to prevent an
+      update from breaking OpenCore compatibility, so this policy
+      may legitimately fail.
+    resolution: >-
+      System Settings > General > Software Update > Automatic Updates
+      > toggle on.
+    query: >-
+      SELECT 1 FROM plist
+      WHERE path = '/Library/Preferences/com.apple.SoftwareUpdate.plist'
+      AND key = 'AutomaticCheckEnabled'
+      AND value = '1';
+    critical: false
+
+  - name: "macOS CIS 6.1.4 guest account disabled"
+    platform: darwin
+    description: >-
+      Pass: the macOS guest account is disabled. The guest account
+      creates sessions with no audit trail and bypasses per-user
+      access controls. On macOS Sequoia the guest account is
+      disabled by default on most installs.
+    resolution: >-
+      System Settings > Users & Groups > Guest User > toggle off
+      "Allow guests to log in to this computer."
+    query: >-
+      SELECT 1 FROM plist
+      WHERE path = '/Library/Preferences/com.apple.loginwindow.plist'
+      AND key = 'GuestEnabled'
+      AND value = '0';
+    critical: false
+
 # ============================================================================
 # Queries
 #

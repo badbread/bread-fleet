@@ -223,7 +223,7 @@ services:
       - fleet-net
     healthcheck:
       # /healthz is Fleet's unauthenticated liveness endpoint.
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "--no-check-certificate", "https://localhost:8080/healthz"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -1,0 +1,3 @@
+# Notion sync dependencies. Minimal: just HTTP client and env loading.
+httpx==0.28.1
+python-dotenv==1.0.1
