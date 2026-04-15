@@ -15,8 +15,25 @@ At enterprise scale, this becomes a versioned config file or a
 database table with a review workflow for new entries.
 """
 
+import re
 from dataclasses import dataclass
 from typing import Optional
+
+# osquery has no parameterized queries, so SQL is built via string
+# formatting. To prevent injection if the registry is ever populated
+# from an external source, we validate that all interpolated values
+# contain only safe characters (alphanumeric, underscore, hyphen,
+# dot, percent for LIKE patterns, and spaces).
+_SAFE_SQL_LITERAL = re.compile(r"^[a-zA-Z0-9_.%\- ]+$")
+
+
+def _validate_sql_safe(value: str, field: str) -> str:
+    """Reject values that could break out of a SQL literal."""
+    if not _SAFE_SQL_LITERAL.match(value):
+        raise ValueError(
+            f"Registry {field} contains unsafe characters: {value!r}"
+        )
+    return value
 
 
 @dataclass(frozen=True)
@@ -38,6 +55,11 @@ class RegistryEntry:
     platform: str = "linux"
     # Optional: specific table for this product on other platforms.
     notes: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        _validate_sql_safe(self.table, "table")
+        _validate_sql_safe(self.name_column, "name_column")
+        _validate_sql_safe(self.name_match, "name_match")
 
 
 # Key: (vendor_project.lower(), product.lower()) from KEV JSON.

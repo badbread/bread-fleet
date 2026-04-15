@@ -138,6 +138,7 @@ ROOT_CAUSES = {
 
 async def fetch_fleet_hosts(fleet_url: str, fleet_token: str) -> list[dict]:
     """Pull all hosts from Fleet with their policy results."""
+    # verify=False: Fleet LAN instance uses a self-signed cert (ADR-0003).
     async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
         resp = await client.get(
             f"{fleet_url}/api/latest/fleet/hosts",
@@ -152,6 +153,7 @@ async def fetch_host_policies(
     fleet_url: str, fleet_token: str, host_id: int
 ) -> list[dict]:
     """Pull policy results for a specific host."""
+    # verify=False: Fleet LAN instance uses a self-signed cert (ADR-0003).
     async with httpx.AsyncClient(verify=False, timeout=30.0) as client:
         resp = await client.get(
             f"{fleet_url}/api/latest/fleet/hosts/{host_id}",
