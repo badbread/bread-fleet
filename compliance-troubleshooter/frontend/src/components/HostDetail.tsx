@@ -19,25 +19,25 @@ export default function HostDetail({ host, onRecheck }: Props) {
       <div className="card">
         <div className="p-5 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-[18px] font-semibold text-neutral-700">
+            <h2 className="text-[18px] font-semibold text-white">
               {host.hostname}
             </h2>
-            <p className="mt-1 text-[13px] text-neutral-500">
+            <p className="mt-1 text-[13px] text-[#9B9A97]">
               {host.platform} &middot; {host.os_version} &middot; {host.status}
             </p>
             <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
               <span>
                 <span className="font-semibold text-[#0F7B6C]">{host.pass_count}</span>{" "}
-                <span className="text-neutral-500">passing</span>
+                <span className="text-[#9B9A97]">passing</span>
               </span>
               <span>
                 <span className="font-semibold text-severity-critical">{host.fail_count}</span>{" "}
-                <span className="text-neutral-500">failing</span>
+                <span className="text-[#9B9A97]">failing</span>
               </span>
               {host.pending_count > 0 && (
                 <span>
-                  <span className="font-semibold text-neutral-500">{host.pending_count}</span>{" "}
-                  <span className="text-neutral-500">pending</span>
+                  <span className="font-semibold text-[#9B9A97]">{host.pending_count}</span>{" "}
+                  <span className="text-[#9B9A97]">pending</span>
                 </span>
               )}
             </p>

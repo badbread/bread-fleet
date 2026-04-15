@@ -26,13 +26,13 @@ function riskBadge(score: number): string {
 export default function RiskTable({ devices }: Props) {
   return (
     <div className="card px-6 py-5">
-      <h2 className="text-[14px] font-semibold text-neutral-700 mb-4">
+      <h2 className="text-[14px] font-semibold text-white mb-4">
         Highest Risk Devices
       </h2>
       <div className="overflow-x-auto">
         <table className="w-full text-[12px]">
           <thead>
-            <tr className="text-left text-neutral-500 border-b border-neutral-150">
+            <tr className="text-left text-[#9B9A97] border-b border-[#3A3936]">
               <th className="pb-2 pr-4 font-medium">Hostname</th>
               <th className="pb-2 pr-4 font-medium">Platform</th>
               <th className="pb-2 pr-4 font-medium text-right">Failures</th>
@@ -43,15 +43,15 @@ export default function RiskTable({ devices }: Props) {
             {devices.map((d) => (
               <tr
                 key={d.hostname}
-                className="border-b border-neutral-100 last:border-b-0"
+                className="border-b border-[#3A3936] last:border-b-0"
               >
-                <td className="py-2 pr-4 font-medium text-neutral-700">
+                <td className="py-2 pr-4 font-medium text-[#E9E9E7]">
                   {d.hostname}
                 </td>
-                <td className="py-2 pr-4 text-neutral-500">
+                <td className="py-2 pr-4 text-[#9B9A97]">
                   {PLATFORM_LABELS[d.platform] ?? d.platform}
                 </td>
-                <td className="py-2 pr-4 text-right text-neutral-500">
+                <td className="py-2 pr-4 text-right text-[#9B9A97]">
                   {d.fail_count} / {d.total_policies}
                 </td>
                 <td className="py-2 text-right">
@@ -65,7 +65,7 @@ export default function RiskTable({ devices }: Props) {
         </table>
       </div>
       {devices.length > 0 && (
-        <p className="mt-3 text-[11px] text-neutral-300">
+        <p className="mt-3 text-[11px] text-[#9B9A97]">
           Risk score = sum of severity weights for all failing policies on the device
         </p>
       )}

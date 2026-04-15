@@ -40,10 +40,12 @@
     background-color: theme("colors.severity.critical-bg");
   }
 
-  /* Card surface used by every panel. Subtle warm border, no shadow,
-     no heavy elevation. Hover state is a faint background tint. */
+  /* Card surface used by every panel. Dark background with muted border
+     matching the portal dark theme. */
   .card {
-    @apply rounded-lg bg-neutral-0 border border-neutral-150;
+    @apply rounded-lg border;
+    background-color: #2F2E2B;
+    border-color: #3A3936;
   }
 
   /* Primary action button: near-black background, white text. */
@@ -51,8 +53,18 @@
     @apply inline-flex items-center px-3.5 py-1.5 rounded-md text-sm font-medium bg-neutral-700 text-neutral-0 hover:bg-neutral-800 disabled:bg-neutral-200 disabled:text-neutral-500 disabled:cursor-not-allowed transition-colors;
   }
 
-  /* Secondary button: bordered, white background. */
+  /* Secondary button: bordered, dark background. */
   .btn-secondary {
-    @apply inline-flex items-center px-3.5 py-1.5 rounded-md text-sm font-medium bg-neutral-0 text-neutral-700 border border-neutral-200 hover:bg-neutral-50 disabled:bg-neutral-50 disabled:text-neutral-300 disabled:cursor-not-allowed transition-colors;
+    @apply inline-flex items-center px-3.5 py-1.5 rounded-md text-sm font-medium border disabled:cursor-not-allowed transition-colors;
+    background-color: #2F2E2B;
+    color: #E9E9E7;
+    border-color: #3A3936;
+  }
+  .btn-secondary:hover {
+    background-color: #1F1E1B;
+  }
+  .btn-secondary:disabled {
+    background-color: #2F2E2B;
+    color: #9B9A97;
   }
 }

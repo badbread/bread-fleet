@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 _SIMULATED_HOSTS = [
     {"hostname": "lab-linux-01", "platform": "ubuntu"},
     {"hostname": "lab-linux-02", "platform": "ubuntu"},
+    {"hostname": "lab-macos-01", "platform": "darwin"},
 ]
 
 _next_id = 1000
@@ -56,6 +57,13 @@ class PolicyStore:
         except OSError as exc:
             logger.warning("failed to save policy store: %s", exc)
 
+    def get_by_cve(self, cve_id: str) -> Optional[DeployedPolicy]:
+        """Return the deployed policy for a CVE, or None if not deployed."""
+        for policy in self._policies.values():
+            if policy.cve_id == cve_id:
+                return policy
+        return None
+
     def deploy(
         self,
         *,
@@ -64,7 +72,18 @@ class PolicyStore:
         osquery_sql: str,
         platform: str = "linux",
     ) -> DeployedPolicy:
-        """Simulate deploying a policy to Fleet."""
+        """Simulate deploying a policy to Fleet.
+
+        Raises ValueError if a policy for cve_id is already deployed. The
+        caller is expected to delete the existing policy first, or the API
+        layer should surface a 409 Conflict to the client.
+        """
+        existing = self.get_by_cve(cve_id)
+        if existing is not None:
+            raise ValueError(
+                f"{cve_id} is already deployed as policy {existing.fleet_policy_id}"
+            )
+
         global _next_id
         policy_id = _next_id
         _next_id += 1

@@ -30,16 +30,16 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<
   if (!active || !payload?.length) return null;
   const point: TrendPoint = payload[0].payload;
   return (
-    <div className="bg-white border border-neutral-150 rounded-md px-3 py-2 shadow-subtle text-[12px]">
-      <p className="font-semibold text-neutral-700">{shortDate(point.date)}</p>
-      <p className="text-neutral-500">
-        Health: <span className="font-medium text-neutral-700">{point.health_score}%</span>
+    <div className="bg-[#2F2E2B] border border-[#3A3936] rounded-md px-3 py-2 shadow-subtle text-[12px]">
+      <p className="font-semibold text-[#E9E9E7]">{shortDate(point.date)}</p>
+      <p className="text-[#9B9A97]">
+        Health: <span className="font-medium text-[#E9E9E7]">{point.health_score}%</span>
       </p>
-      <p className="text-neutral-500">
+      <p className="text-[#9B9A97]">
         Devices: {point.device_count}
       </p>
       {point.events.length > 0 && (
-        <div className="mt-1 pt-1 border-t border-neutral-100">
+        <div className="mt-1 pt-1 border-t border-[#3A3936]">
           {point.events.map((e, i) => (
             <p key={i} className="text-accent text-[11px]">{e}</p>
           ))}
@@ -54,7 +54,7 @@ export default function ComplianceTrend({ data }: Props) {
 
   return (
     <div className="card px-6 py-5">
-      <h2 className="text-[14px] font-semibold text-neutral-700 mb-4">
+      <h2 className="text-[14px] font-semibold text-white mb-4">
         Compliance Trend (30 days)
       </h2>
       <div className="h-[260px]">
@@ -104,7 +104,7 @@ export default function ComplianceTrend({ data }: Props) {
       {eventPoints.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1">
           {eventPoints.map((ep) => (
-            <p key={ep.date} className="text-[11px] text-neutral-500">
+            <p key={ep.date} className="text-[11px] text-[#9B9A97]">
               <span className="inline-block w-2 h-2 rounded-full bg-severity-high mr-1.5 align-middle" />
               {shortDate(ep.date)}: {ep.events[0]}
             </p>

@@ -38,7 +38,7 @@ export default function KevDetail({ mapped, onDeployed }: Props) {
     <div className="px-5 py-4 space-y-4 overflow-y-auto h-full">
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <h2 className="text-[16px] font-semibold text-neutral-700">
+          <h2 className="text-[16px] font-semibold text-[#E9E9E7]">
             {kev.cveID}
           </h2>
           <MappingBadge status={status} />
@@ -48,42 +48,42 @@ export default function KevDetail({ mapped, onDeployed }: Props) {
             </span>
           )}
         </div>
-        <p className="text-[13px] text-neutral-700 leading-relaxed">
+        <p className="text-[13px] text-[#E9E9E7] leading-relaxed">
           {kev.shortDescription}
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 text-[12px]">
         <div>
-          <span className="text-neutral-500">Vendor</span>
-          <p className="text-neutral-700 font-medium">{kev.vendorProject}</p>
+          <span className="text-[#9B9A97]">Vendor</span>
+          <p className="text-[#E9E9E7] font-medium">{kev.vendorProject}</p>
         </div>
         <div>
-          <span className="text-neutral-500">Product</span>
-          <p className="text-neutral-700 font-medium">{kev.product}</p>
+          <span className="text-[#9B9A97]">Product</span>
+          <p className="text-[#E9E9E7] font-medium">{kev.product}</p>
         </div>
         <div>
-          <span className="text-neutral-500">Added to KEV</span>
-          <p className="text-neutral-700 font-medium">{kev.dateAdded}</p>
+          <span className="text-[#9B9A97]">Added to KEV</span>
+          <p className="text-[#E9E9E7] font-medium">{kev.dateAdded}</p>
         </div>
         <div>
-          <span className="text-neutral-500">Due date</span>
-          <p className="text-neutral-700 font-medium">{kev.dueDate}</p>
+          <span className="text-[#9B9A97]">Due date</span>
+          <p className="text-[#E9E9E7] font-medium">{kev.dueDate}</p>
         </div>
       </div>
 
       <div>
-        <p className="text-[12px] text-neutral-500 mb-1">Required action</p>
-        <p className="text-[13px] text-neutral-700 leading-relaxed">
+        <p className="text-[12px] text-[#9B9A97] mb-1">Required action</p>
+        <p className="text-[13px] text-[#E9E9E7] leading-relaxed">
           {kev.requiredAction}
         </p>
       </div>
 
       <div>
-        <p className="text-[12px] text-neutral-500 mb-1">Mapping</p>
-        <p className="text-[13px] text-neutral-700">{mapping_reason}</p>
+        <p className="text-[12px] text-[#9B9A97] mb-1">Mapping</p>
+        <p className="text-[13px] text-[#E9E9E7]">{mapping_reason}</p>
         {confidence && (
-          <p className="text-[12px] text-neutral-500 mt-0.5">
+          <p className="text-[12px] text-[#9B9A97] mt-0.5">
             Confidence: <span className="font-medium">{confidence}</span>
           </p>
         )}
@@ -91,7 +91,7 @@ export default function KevDetail({ mapped, onDeployed }: Props) {
 
       {osquery_sql && (
         <div>
-          <p className="text-[12px] text-neutral-500 mb-2">
+          <p className="text-[12px] text-[#9B9A97] mb-2">
             Generated osquery SQL
           </p>
           <SqlPreview sql={osquery_sql} />
@@ -103,7 +103,7 @@ export default function KevDetail({ mapped, onDeployed }: Props) {
           )}
 
           <div className="mt-3 flex items-center gap-3">
-            <label className="flex items-center gap-1.5 text-[12px] text-neutral-500 cursor-pointer">
+            <label className="flex items-center gap-1.5 text-[12px] text-[#9B9A97] cursor-pointer">
               <input
                 type="checkbox"
                 checked={dryRun}
@@ -117,7 +117,7 @@ export default function KevDetail({ mapped, onDeployed }: Props) {
               disabled={deploying}
               className={`px-4 py-1.5 text-[13px] font-medium rounded-md transition-colors ${
                 dryRun
-                  ? "bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                  ? "bg-[#3A3936] text-[#E9E9E7] hover:bg-[#555350]"
                   : "bg-accent text-white hover:bg-accent/90"
               } disabled:opacity-50`}
             >
@@ -133,14 +133,14 @@ export default function KevDetail({ mapped, onDeployed }: Props) {
 
       {lastResult && (
         <div className="card px-4 py-3">
-          <p className="text-[12px] text-neutral-500">
+          <p className="text-[12px] text-[#9B9A97]">
             {lastResult.dry_run ? "Dry run result" : "Deployed"}
           </p>
-          <p className="text-[13px] text-neutral-700 font-medium mt-1">
+          <p className="text-[13px] text-[#E9E9E7] font-medium mt-1">
             {lastResult.policy_name}
           </p>
           {lastResult.fleet_policy_id && (
-            <p className="text-[12px] text-neutral-500 mt-0.5">
+            <p className="text-[12px] text-[#9B9A97] mt-0.5">
               Fleet policy ID: {lastResult.fleet_policy_id}
             </p>
           )}

@@ -20,12 +20,14 @@ logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = """\
 You are an osquery SQL expert helping a Fleet device management team \
-detect known exploited vulnerabilities on enrolled Linux hosts.
+detect known exploited vulnerabilities on enrolled hosts.
 
 Given a CISA KEV vulnerability entry, generate an osquery SQL query \
 that detects whether the vulnerable software is installed on a host.
 
 Available osquery tables for detection:
+
+Linux (Ubuntu/Debian):
 - deb_packages (name, version, source, arch) — Debian/Ubuntu packages
 - rpm_packages (name, version, release, arch) — RHEL/CentOS packages
 - os_version (name, version, major, minor, patch, platform) — OS info
@@ -34,12 +36,24 @@ Available osquery tables for detection:
 - python_packages (name, version) — pip packages
 - npm_packages (name, version) — Node.js packages
 
+macOS:
+- apps (name, bundle_short_version, path) — installed .app bundles
+- homebrew_packages (name, version) — Homebrew formulae
+- os_version (name, version, major, minor, patch, platform, build) — OS info (platform = 'darwin')
+- system_extensions (identifier, version, state) — system/kernel extensions
+- safari_extensions (name, version) — Safari browser extensions
+
 Fleet policy convention: the query must return 1 row when the host \
 PASSES (is NOT vulnerable) and 0 rows when it FAILS (IS vulnerable).
 
-Pattern for "host is vulnerable if package X is installed":
+Pattern for "host is vulnerable if package X is installed" (Linux):
   SELECT 1 WHERE NOT EXISTS (
     SELECT 1 FROM deb_packages WHERE name = 'package_name'
+  );
+
+Pattern for "host is vulnerable if app X is installed" (macOS):
+  SELECT 1 WHERE NOT EXISTS (
+    SELECT 1 FROM apps WHERE name = 'AppName.app'
   );
 
 Pattern for "host is vulnerable if package X version is below Y":
@@ -53,7 +67,7 @@ Respond with valid JSON only:
   "osquery_table": "primary table used",
   "mapping_reason": "1-sentence explanation of the detection strategy",
   "confidence": "high" | "medium" | "low",
-  "platform": "linux"
+  "platform": "linux" | "darwin"
 }
 
 If the product cannot be detected via osquery, respond:
@@ -74,6 +88,13 @@ async def generate_mapping(
         logger.warning("anthropic package not installed, skipping Claude mapper")
         return None
 
+    # Determine target platform from vendor.
+    vendor_lower = entry.vendor_project.lower()
+    if vendor_lower == "apple":
+        platform_hint = "macOS (darwin) hosts"
+    else:
+        platform_hint = "Linux (Ubuntu/Debian) hosts"
+
     user_prompt = (
         f"CISA KEV entry:\n"
         f"  CVE ID: {entry.cve_id}\n"
@@ -84,7 +105,7 @@ async def generate_mapping(
         f"  Required Action: {entry.required_action}\n"
         f"\n"
         f"Generate an osquery detection query for this vulnerability "
-        f"targeting Linux (Ubuntu/Debian) hosts."
+        f"targeting {platform_hint}."
     )
 
     client = anthropic.AsyncAnthropic(api_key=api_key)

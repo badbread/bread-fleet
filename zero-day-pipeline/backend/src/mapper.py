@@ -111,8 +111,12 @@ def _unmappable_reason(entry: KevEntry) -> str:
             f"Not installed on endpoints."
         )
 
-    # Mobile-only.
-    if any(w in product for w in ["ios", "android", "mobile"]):
+    # Mobile-only. Apple KEV entries often list "iOS, iPadOS, macOS"
+    # together — those are NOT mobile-only since they include macOS.
+    # Only flag as mobile if the product does NOT include macOS.
+    is_mobile = any(w in product for w in ["ios", "android", "mobile"])
+    has_macos = "macos" in product
+    if is_mobile and not has_macos and vendor != "apple":
         return (
             f"Mobile platform ({entry.product}). "
             f"osquery does not run on mobile devices."

@@ -22,16 +22,16 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-50">
-      <header className="bg-white border-b border-neutral-150">
+    <div className="min-h-screen flex flex-col bg-[#1F1E1B]">
+      <header className="bg-[#2F2E2B] border-b border-[#3A3936]">
         <div className="max-w-[1400px] mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Logo size={36} className="shrink-0" />
             <div>
-              <h1 className="text-[22px] leading-tight font-semibold text-neutral-700">
+              <h1 className="text-[22px] leading-tight font-semibold text-white">
                 Zero-Day Response Pipeline
               </h1>
-              <p className="mt-1 text-[13px] text-neutral-500">
+              <p className="mt-1 text-[13px] text-[#9B9A97]">
                 CISA KEV to Fleet detection policies — curated registry with Claude AI assist
               </p>
             </div>
@@ -62,7 +62,7 @@ export default function App() {
               {selected ? (
                 <KevDetail mapped={selected} onDeployed={handleDeployed} />
               ) : (
-                <div className="flex items-center justify-center h-full text-[13px] text-neutral-500">
+                <div className="flex items-center justify-center h-full text-[13px] text-[#9B9A97]">
                   Select a KEV entry to view details and generate a detection query
                 </div>
               )}
@@ -76,8 +76,8 @@ export default function App() {
         </div>
       </main>
 
-      <footer className="bg-white border-t border-neutral-150">
-        <div className="max-w-[1400px] mx-auto px-6 py-3 text-xs text-neutral-500 flex items-center justify-between">
+      <footer className="bg-[#2F2E2B] border-t border-[#3A3936]">
+        <div className="max-w-[1400px] mx-auto px-6 py-3 text-xs text-[#787774] flex items-center justify-between">
           <span>
             Source: CISA Known Exploited Vulnerabilities Catalog
           </span>

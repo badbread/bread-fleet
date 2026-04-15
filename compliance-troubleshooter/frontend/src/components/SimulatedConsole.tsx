@@ -93,7 +93,7 @@ export default function SimulatedConsole({ remediationId, hostname }: Props) {
   }, [lines]);
 
   return (
-    <div className="mt-4 rounded-lg overflow-hidden border border-neutral-200">
+    <div className="mt-4 rounded-lg overflow-hidden border border-[#3A3936]">
       {/* Title bar */}
       <div className="bg-neutral-800 px-4 py-2 flex items-center gap-2">
         <span className="w-3 h-3 rounded-full bg-[#E03E3E]" />
@@ -130,17 +130,17 @@ export default function SimulatedConsole({ remediationId, hostname }: Props) {
 
       {/* Disclaimer */}
       {done && (
-        <div className="bg-severity-medium-bg border-t border-neutral-200 px-4 py-3">
-          <p className="text-[13px] text-neutral-700 leading-relaxed">
+        <div className="bg-[#2F2E2B] border-t border-[#3A3936] px-4 py-3">
+          <p className="text-[13px] text-[#E9E9E7] leading-relaxed">
             <span className="font-semibold">This was a simulated execution.</span>{" "}
             Fleet's script execution API requires the host's orbit agent to report
-            the <code className="text-[12px] bg-white px-1 rounded">scripts_enabled</code> capability,
+            the <code className="text-[12px] bg-[#1F1E1B] px-1 rounded">scripts_enabled</code> capability,
             which is blocked by a self-signed certificate limitation in this deployment
             (see <span className="font-medium">ADR-0006</span>). In production with a
             real CA certificate, the same remediation runs as a live shell script
             dispatched through Fleet's agent — the architecture is identical.
           </p>
-          <p className="mt-2 text-[12px] text-neutral-500 italic">
+          <p className="mt-2 text-[12px] text-[#9B9A97] italic">
             In production, the "Re-check" button would re-fetch the host's
             policy status from Fleet to confirm the fix took effect.
           </p>

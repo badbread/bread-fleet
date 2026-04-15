@@ -32,7 +32,7 @@ function highlight(sql: string): (string | JSX.Element)[] {
 
 export default function SqlPreview({ sql }: Props) {
   return (
-    <pre className="bg-neutral-50 border border-neutral-150 rounded-md px-4 py-3 text-[12px] leading-relaxed font-mono text-neutral-700 overflow-x-auto whitespace-pre-wrap">
+    <pre className="bg-[#1F1E1B] border border-[#3A3936] rounded-md px-4 py-3 text-[12px] leading-relaxed font-mono text-[#E9E9E7] overflow-x-auto whitespace-pre-wrap">
       {highlight(sql)}
     </pre>
   );

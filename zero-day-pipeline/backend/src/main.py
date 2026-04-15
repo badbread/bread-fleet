@@ -212,12 +212,18 @@ async def deploy_kev(
         )
         return deployed
 
-    deployed = store.deploy(
-        cve_id=cve_id,
-        policy_name=policy_name,
-        osquery_sql=mapped.osquery_sql,
-        platform=mapped.platform,
-    )
+    try:
+        deployed = store.deploy(
+            cve_id=cve_id,
+            policy_name=policy_name,
+            osquery_sql=mapped.osquery_sql,
+            platform=mapped.platform,
+        )
+    except ValueError as exc:
+        # A policy for this CVE is already deployed. Return 409 so the
+        # frontend can surface a "already deployed" message rather than
+        # silently creating a duplicate entry.
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     audit.record(
         AuditAction.POLICY_DEPLOYED,

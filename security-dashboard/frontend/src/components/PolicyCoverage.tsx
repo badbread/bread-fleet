@@ -19,7 +19,7 @@ const SEVERITY_DOTS: Record<Severity, string> = {
 export default function PolicyCoverage({ policies }: Props) {
   return (
     <div className="card px-6 py-5">
-      <h2 className="text-[14px] font-semibold text-neutral-700 mb-4">
+      <h2 className="text-[14px] font-semibold text-white mb-4">
         Policy Rollout Coverage
       </h2>
       <div className="space-y-2.5">
@@ -33,16 +33,16 @@ export default function PolicyCoverage({ policies }: Props) {
               <span
                 className={`inline-block w-2 h-2 rounded-full shrink-0 ${SEVERITY_DOTS[p.severity]}`}
               />
-              <span className="text-[12px] text-neutral-700 w-[220px] truncate shrink-0">
+              <span className="text-[12px] text-[#E9E9E7] w-[220px] truncate shrink-0">
                 {p.name}
               </span>
-              <div className="flex-1 h-2 bg-neutral-100 rounded-full overflow-hidden">
+              <div className="flex-1 h-2 bg-[#1F1E1B] rounded-full overflow-hidden">
                 <div
                   className="h-full bg-accent rounded-full"
                   style={{ width: `${pct}%` }}
                 />
               </div>
-              <span className="text-[11px] text-neutral-500 w-20 text-right shrink-0">
+              <span className="text-[11px] text-[#9B9A97] w-20 text-right shrink-0">
                 {evaluated} / {p.applicable_count}
               </span>
             </div>

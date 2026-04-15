@@ -208,6 +208,72 @@ REGISTRY: dict[tuple[str, str], RegistryEntry] = {
         version_column="version",
         notes="Checks kernel version via os_version table",
     ),
+
+    # ============================================================== #
+    # macOS / Apple products
+    # ============================================================== #
+    # Apple KEV entries use inconsistent product strings. Multiple
+    # registry keys map to the same detection strategy. Only the macOS
+    # component is detectable via osquery — iOS, watchOS, tvOS, and
+    # visionOS are not enrolled in Fleet.
+
+    # -- macOS itself (os_version check) --
+    ("apple", "macos"): RegistryEntry(
+        label="macOS",
+        table="os_version",
+        name_column="platform",
+        name_match="darwin",
+        version_column="version",
+        platform="darwin",
+        notes="Checks macOS version via os_version table",
+    ),
+
+    # Multi-product entries that include macOS. CISA lists these as
+    # "Multiple Products" covering watchOS, iOS, iPadOS, macOS,
+    # visionOS, tvOS. We detect the macOS component only.
+    ("apple", "multiple products"): RegistryEntry(
+        label="Apple Multiple Products (macOS component)",
+        table="os_version",
+        name_column="platform",
+        name_match="darwin",
+        version_column="version",
+        platform="darwin",
+        notes="Multi-product KEV entry; detects macOS component only",
+    ),
+
+    # Safari — detected via apps table on macOS.
+    ("apple", "safari"): RegistryEntry(
+        label="Safari",
+        table="apps",
+        name_column="name",
+        name_match="Safari.app",
+        version_column="bundle_short_version",
+        platform="darwin",
+        notes="Detects Safari via /Applications bundle version",
+    ),
+
+    # Xcode — developer tool, detected via apps table.
+    ("apple", "xcode"): RegistryEntry(
+        label="Xcode",
+        table="apps",
+        name_column="name",
+        name_match="Xcode.app",
+        version_column="bundle_short_version",
+        platform="darwin",
+        notes="Detects Xcode via /Applications bundle version",
+    ),
+
+    # WebKit — detected via Safari since WebKit ships as part of
+    # Safari/macOS. Same detection as Safari.
+    ("apple", "webkit"): RegistryEntry(
+        label="WebKit (via Safari)",
+        table="apps",
+        name_column="name",
+        name_match="Safari.app",
+        version_column="bundle_short_version",
+        platform="darwin",
+        notes="WebKit ships with Safari; detect via Safari version",
+    ),
 }
 
 
@@ -247,12 +313,31 @@ def generate_sql(entry: RegistryEntry) -> str:
     signal that vulnerability management starts with.
     """
     if entry.table == "os_version":
-        # Kernel check: return 1 if the kernel version is known.
+        if entry.platform == "darwin":
+            # macOS check: return 1 if the host is running macOS.
+            # In production this compares against a specific vulnerable
+            # build number or version range.
+            return (
+                "SELECT 1 FROM os_version "
+                "WHERE platform = 'darwin';"
+            )
+        # Linux kernel check: return 1 if the kernel version is known.
         # In production this compares against a specific vulnerable range.
         return (
             "SELECT 1 FROM os_version "
             "WHERE name = 'Ubuntu' "
             "AND CAST(major AS INTEGER) >= 24;"
+        )
+
+    if entry.table == "apps":
+        # macOS app check via the apps table (Safari, Xcode, etc.).
+        # Returns 1 (pass) if the app is NOT installed. In production
+        # this would compare bundle_short_version against a safe version.
+        return (
+            f"SELECT 1 WHERE NOT EXISTS (\n"
+            f"  SELECT 1 FROM apps\n"
+            f"  WHERE {entry.name_column} = '{entry.name_match}'\n"
+            f");"
         )
 
     if entry.like:

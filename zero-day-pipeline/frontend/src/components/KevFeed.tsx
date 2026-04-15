@@ -24,6 +24,8 @@ const MAPPABLE_HINTS = [
   "python", "node.js", "java",
   "postgresql", "mysql", "redis",
   "bind", "docker", "linux kernel", "kernel",
+  // macOS / Apple products
+  "apple", "macos", "safari", "webkit", "xcode",
 ];
 
 function likelyMappable(entry: KevEntry): boolean {
@@ -87,8 +89,8 @@ export default function KevFeed({ onSelect, selectedCve, deployedCves }: Props) 
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-neutral-150 space-y-2">
-        <h2 className="text-[14px] font-semibold text-neutral-700">
+      <div className="px-4 py-3 border-b border-[#3A3936] space-y-2">
+        <h2 className="text-[14px] font-semibold text-white">
           CISA KEV Feed
         </h2>
         <input
@@ -96,13 +98,13 @@ export default function KevFeed({ onSelect, selectedCve, deployedCves }: Props) 
           placeholder="Filter by product..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-3 py-1.5 text-[13px] border border-neutral-200 rounded-md focus:outline-none focus:ring-1 focus:ring-accent"
+          className="w-full px-3 py-1.5 text-[13px] bg-[#1F1E1B] border border-[#3A3936] text-[#E9E9E7] placeholder:text-[#9B9A97] rounded-md focus:outline-none focus:ring-1 focus:ring-accent"
         />
-        <div className="flex items-center gap-3 text-[12px] text-neutral-500">
+        <div className="flex items-center gap-3 text-[12px] text-[#9B9A97]">
           <select
             value={days}
             onChange={(e) => setDays(Number(e.target.value))}
-            className="border border-neutral-200 rounded px-2 py-1 text-[12px]"
+            className="bg-[#1F1E1B] border border-[#3A3936] text-[#E9E9E7] rounded px-2 py-1 text-[12px]"
           >
             <option value={30}>Last 30 days</option>
             <option value={90}>Last 90 days</option>
@@ -119,7 +121,7 @@ export default function KevFeed({ onSelect, selectedCve, deployedCves }: Props) 
             Ransomware only
           </label>
         </div>
-        <p className="text-[11px] text-neutral-500">
+        <p className="text-[11px] text-[#9B9A97]">
           {total} entries &middot;{" "}
           <span className="text-mapping-mapped font-medium">{mappableCount} mappable</span>
         </p>
@@ -127,7 +129,7 @@ export default function KevFeed({ onSelect, selectedCve, deployedCves }: Props) 
 
       <div className="flex-1 overflow-y-auto">
         {loading && (
-          <p className="px-4 py-6 text-[13px] text-neutral-500 text-center">
+          <p className="px-4 py-6 text-[13px] text-[#9B9A97] text-center">
             Loading KEV feed...
           </p>
         )}
@@ -145,7 +147,7 @@ export default function KevFeed({ onSelect, selectedCve, deployedCves }: Props) 
                 key={entry.cveID}
                 onClick={() => handleSelect(entry)}
                 disabled={mappingEntry === entry.cveID}
-                className={`w-full text-left px-4 py-3 border-b border-neutral-100 hover:bg-neutral-50 transition-colors ${
+                className={`w-full text-left px-4 py-3 border-b border-[#3A3936] hover:bg-[#1F1E1B] transition-colors ${
                   selectedCve === entry.cveID ? "bg-accent-subtle" : ""
                 } ${mappingEntry === entry.cveID ? "opacity-50" : ""}`}
               >
@@ -156,7 +158,7 @@ export default function KevFeed({ onSelect, selectedCve, deployedCves }: Props) 
                     }`}
                     title={deployed ? "Deployed to Fleet" : mappable ? "Likely mappable to osquery" : "May not be detectable via osquery"}
                   />
-                  <span className="text-[13px] font-medium text-neutral-700 flex-1">
+                  <span className="text-[13px] font-medium text-[#E9E9E7] flex-1">
                     {entry.cveID}
                   </span>
                   {deployed && (
@@ -164,11 +166,11 @@ export default function KevFeed({ onSelect, selectedCve, deployedCves }: Props) 
                       Deployed
                     </span>
                   )}
-                  <span className="text-[11px] text-neutral-500 shrink-0">
+                  <span className="text-[11px] text-[#9B9A97] shrink-0">
                     {entry.dateAdded}
                   </span>
                 </div>
-                <p className="text-[12px] text-neutral-500 mt-0.5 truncate pl-4">
+                <p className="text-[12px] text-[#9B9A97] mt-0.5 truncate pl-4">
                   {entry.vendorProject} — {entry.product}
                 </p>
                 {entry.knownRansomwareCampaignUse === "Known" && (

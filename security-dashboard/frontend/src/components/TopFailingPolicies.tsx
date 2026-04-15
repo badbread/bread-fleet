@@ -31,12 +31,12 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: Array<
   if (!active || !payload?.length) return null;
   const p: PolicyRanking = payload[0].payload;
   return (
-    <div className="bg-white border border-neutral-150 rounded-md px-3 py-2 shadow-subtle text-[12px]">
-      <p className="font-semibold text-neutral-700">{p.name}</p>
-      <p className="text-neutral-500">
+    <div className="bg-[#2F2E2B] border border-[#3A3936] rounded-md px-3 py-2 shadow-subtle text-[12px]">
+      <p className="font-semibold text-[#E9E9E7]">{p.name}</p>
+      <p className="text-[#9B9A97]">
         Failing: {p.fail_count} / {p.applicable_count} devices ({p.fail_rate}%)
       </p>
-      <p className="text-neutral-500 capitalize">
+      <p className="text-[#9B9A97] capitalize">
         Severity: {p.severity} (weight {p.weight}x)
       </p>
     </div>
@@ -54,7 +54,7 @@ export default function TopFailingPolicies({ policies }: Props) {
 
   return (
     <div className="card px-6 py-5">
-      <h2 className="text-[14px] font-semibold text-neutral-700 mb-4">
+      <h2 className="text-[14px] font-semibold text-white mb-4">
         Top Failing Policies
       </h2>
       <div className="h-[300px]">
@@ -94,7 +94,7 @@ export default function TopFailingPolicies({ policies }: Props) {
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <div className="mt-3 flex gap-4 text-[11px] text-neutral-500">
+      <div className="mt-3 flex gap-4 text-[11px] text-[#9B9A97]">
         {(["critical", "high", "medium", "low"] as Severity[]).map((s) => (
           <span key={s} className="flex items-center gap-1">
             <span

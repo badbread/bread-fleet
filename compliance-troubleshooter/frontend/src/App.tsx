@@ -30,15 +30,15 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-50">
-      <header className="bg-neutral-0 border-b border-neutral-150">
+    <div className="min-h-screen flex flex-col bg-[#1F1E1B]">
+      <header className="bg-[#2F2E2B] border-b border-[#3A3936]">
         <div className="max-w-3xl mx-auto px-8 py-6 flex items-center gap-4">
           <Logo size={42} className="shrink-0" />
           <div className="flex-1">
-            <h1 className="text-[26px] leading-tight font-semibold text-neutral-700">
+            <h1 className="text-[26px] leading-tight font-semibold text-white">
               Compliance Troubleshooter
             </h1>
-            <p className="mt-1 text-[14px] text-neutral-500 leading-relaxed">
+            <p className="mt-1 text-[14px] text-[#9B9A97] leading-relaxed">
               Look up a device. Read the findings in plain English. Fix the safe ones with one click.
             </p>
           </div>
@@ -56,7 +56,7 @@ export default function App() {
           <HostSearch onPickHost={loadHost} />
 
           {loading && (
-            <div className="card px-6 py-10 text-center text-neutral-500 text-sm">
+            <div className="card px-6 py-10 text-center text-[#9B9A97] text-sm">
               Loading device compliance...
             </div>
           )}
@@ -68,7 +68,7 @@ export default function App() {
             >
               <p className="text-sm">
                 <span className="font-semibold text-severity-critical">Could not load this device. </span>
-                <span className="text-neutral-700">{error}</span>
+                <span className="text-[#E9E9E7]">{error}</span>
               </p>
             </div>
           )}
@@ -81,15 +81,15 @@ export default function App() {
           )}
 
           {!selectedHost && !loading && !error && (
-            <div className="card px-6 py-14 text-center text-neutral-500 text-sm">
+            <div className="card px-6 py-14 text-center text-[#9B9A97] text-sm">
               Search for a device by hostname above to see its compliance status.
             </div>
           )}
         </div>
       </main>
 
-      <footer className="bg-neutral-0 border-t border-neutral-150">
-        <div className="max-w-3xl mx-auto px-8 py-3 text-xs text-neutral-500 flex items-center justify-between">
+      <footer className="bg-[#2F2E2B] border-t border-[#3A3936]">
+        <div className="max-w-3xl mx-auto px-8 py-3 text-xs text-[#787774] flex items-center justify-between">
           <span>Operator: anonymous (SSO integration pending)</span>
           <span>v0.1.0</span>
         </div>

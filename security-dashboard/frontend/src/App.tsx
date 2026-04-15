@@ -38,12 +38,12 @@ export default function App() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+      <div className="min-h-screen bg-[#1F1E1B] flex items-center justify-center">
         <div className="card px-6 py-8 max-w-md text-center">
           <p className="text-sm text-severity-critical font-semibold">
             Failed to load dashboard data
           </p>
-          <p className="mt-2 text-sm text-neutral-500">{error}</p>
+          <p className="mt-2 text-sm text-[#9B9A97]">{error}</p>
         </div>
       </div>
     );
@@ -51,23 +51,23 @@ export default function App() {
 
   if (!summary) {
     return (
-      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
-        <p className="text-sm text-neutral-500">Loading dashboard...</p>
+      <div className="min-h-screen bg-[#1F1E1B] flex items-center justify-center">
+        <p className="text-sm text-[#9B9A97]">Loading dashboard...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-neutral-50">
-      <header className="bg-white border-b border-neutral-150">
+    <div className="min-h-screen flex flex-col bg-[#1F1E1B]">
+      <header className="bg-[#2F2E2B] border-b border-[#3A3936]">
         <div className="max-w-6xl mx-auto px-8 py-5 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Logo size={36} className="shrink-0" />
             <div>
-            <h1 className="text-[22px] leading-tight font-semibold text-neutral-700">
+            <h1 className="text-[22px] leading-tight font-semibold text-white">
               Security Posture Dashboard
             </h1>
-            <p className="mt-1 text-[13px] text-neutral-500">
+            <p className="mt-1 text-[13px] text-[#9B9A97]">
               Fleet-wide compliance health, trends, and risk concentration
             </p>
             </div>
@@ -109,8 +109,8 @@ export default function App() {
         </div>
       </main>
 
-      <footer className="bg-white border-t border-neutral-150">
-        <div className="max-w-6xl mx-auto px-8 py-3 text-xs text-neutral-500 flex items-center justify-between">
+      <footer className="bg-[#2F2E2B] border-t border-[#3A3936]">
+        <div className="max-w-6xl mx-auto px-8 py-3 text-xs text-[#787774] flex items-center justify-between">
           <span>
             Data: synthetic (augmented from real Fleet policies to ~{summary.device_count} devices)
           </span>

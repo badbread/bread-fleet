@@ -42,10 +42,10 @@ export default function HostSearch({ onPickHost }: Props) {
 
   return (
     <div className="card">
-      <div className="px-5 pt-4 pb-3 border-b border-neutral-150">
+      <div className="px-5 pt-4 pb-3 border-b border-[#3A3936]">
         <label
           htmlFor="host-search"
-          className="block text-[13px] font-medium text-neutral-700 mb-1.5"
+          className="block text-[13px] font-medium text-[#E9E9E7] mb-1.5"
         >
           Search for a device
         </label>
@@ -55,19 +55,19 @@ export default function HostSearch({ onPickHost }: Props) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="mrlinux1, mrlinux2 (failing)"
-          className="w-full px-3 py-1.5 bg-neutral-0 border border-neutral-200 rounded-md text-[14px] text-neutral-700 placeholder:text-neutral-300 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
+          className="w-full px-3 py-1.5 bg-[#1F1E1B] border border-[#3A3936] rounded-md text-[14px] text-[#E9E9E7] placeholder:text-[#9B9A97] focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-colors"
           autoFocus
         />
       </div>
 
       {searching && (
-        <div className="px-5 py-3 text-[13px] text-neutral-500">
+        <div className="px-5 py-3 text-[13px] text-[#9B9A97]">
           Searching...
         </div>
       )}
 
       {error && (
-        <div className="px-5 py-3 text-[13px] text-severity-critical bg-severity-critical-bg border-t border-neutral-150">
+        <div className="px-5 py-3 text-[13px] text-severity-critical bg-severity-critical-bg border-t border-[#3A3936]">
           {error}
         </div>
       )}
@@ -75,18 +75,18 @@ export default function HostSearch({ onPickHost }: Props) {
       {results.length > 0 && (
         <ul>
           {results.map((host) => (
-            <li key={host.id} className="border-t border-neutral-150 first:border-t-0">
+            <li key={host.id} className="border-t border-[#3A3936] first:border-t-0">
               <button
                 type="button"
                 onClick={() => onPickHost(host.hostname)}
-                className="w-full px-5 py-3 text-left hover:bg-neutral-50 focus:bg-neutral-50 focus:outline-none transition-colors"
+                className="w-full px-5 py-3 text-left hover:bg-[#1F1E1B] focus:bg-[#1F1E1B] focus:outline-none transition-colors"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-[14px] font-medium text-neutral-700">
+                    <div className="text-[14px] font-medium text-[#E9E9E7]">
                       {host.hostname}
                     </div>
-                    <div className="text-[12px] text-neutral-500 mt-0.5">
+                    <div className="text-[12px] text-[#9B9A97] mt-0.5">
                       {host.platform || "unknown platform"}
                     </div>
                   </div>
@@ -99,7 +99,7 @@ export default function HostSearch({ onPickHost }: Props) {
       )}
 
       {query.trim() && !searching && results.length === 0 && !error && (
-        <div className="px-5 py-3 text-[13px] text-neutral-500">
+        <div className="px-5 py-3 text-[13px] text-[#9B9A97]">
           No devices match "{query}".
         </div>
       )}
@@ -115,7 +115,7 @@ function StatusBadge({ status }: { status: string }) {
         "inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium " +
         (isOnline
           ? "text-[#0F7B6C] bg-[#DDEDE8]"
-          : "text-neutral-500 bg-neutral-100")
+          : "text-[#9B9A97] bg-[#3A3936]")
       }
     >
       {status}

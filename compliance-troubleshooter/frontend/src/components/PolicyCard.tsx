@@ -21,11 +21,11 @@ export default function PolicyCard({ hostname, policy }: Props) {
       <div className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            <p className="text-[15px] text-neutral-700 font-medium leading-snug">
+            <p className="text-[15px] text-[#E9E9E7] font-medium leading-snug">
               {policy.summary}
             </p>
-            <p className="mt-2 text-[13px] text-neutral-500 leading-relaxed">
-              <span className="font-medium text-neutral-700">Why it matters: </span>
+            <p className="mt-2 text-[13px] text-[#9B9A97] leading-relaxed">
+              <span className="font-medium text-[#E9E9E7]">Why it matters: </span>
               {policy.impact}
             </p>
           </div>
@@ -33,8 +33,8 @@ export default function PolicyCard({ hostname, policy }: Props) {
         </div>
 
         <div className="mt-4">
-          <p className="text-[13px] font-medium text-neutral-700 mb-2">How to fix it:</p>
-          <ol className="list-decimal list-inside space-y-1 text-[13px] text-neutral-700 leading-relaxed">
+          <p className="text-[13px] font-medium text-[#E9E9E7] mb-2">How to fix it:</p>
+          <ol className="list-decimal list-inside space-y-1 text-[13px] text-[#E9E9E7] leading-relaxed">
             {policy.fix_steps.map((step, i) => (
               <li key={i}>{step}</li>
             ))}
@@ -43,7 +43,7 @@ export default function PolicyCard({ hostname, policy }: Props) {
 
         {/* Fix button: shows for policies with an automated remediation path */}
         {policy.support_can_fix_themselves && policy.automated_remediation_id && !showConsole && (
-          <div className="mt-5 pt-4 border-t border-neutral-100">
+          <div className="mt-5 pt-4 border-t border-[#3A3936]">
             <button
               type="button"
               onClick={() => setShowConsole(true)}
@@ -63,14 +63,14 @@ export default function PolicyCard({ hostname, policy }: Props) {
         )}
 
         {!policy.support_can_fix_themselves && policy.escalate_to && (
-          <div className="mt-5 pt-4 border-t border-neutral-100 text-[13px] text-neutral-500">
+          <div className="mt-5 pt-4 border-t border-[#3A3936] text-[13px] text-[#9B9A97]">
             This finding needs an engineer. Escalate to:{" "}
-            <span className="font-medium text-neutral-700">{policy.escalate_to}</span>
+            <span className="font-medium text-[#E9E9E7]">{policy.escalate_to}</span>
           </div>
         )}
 
         {policy.support_can_fix_themselves && !policy.automated_remediation_id && (
-          <div className="mt-5 pt-4 border-t border-neutral-100 text-[13px] text-neutral-500 italic">
+          <div className="mt-5 pt-4 border-t border-[#3A3936] text-[13px] text-[#9B9A97] italic">
             Manual fix only for now. Walk the user through the steps above.
           </div>
         )}

@@ -62,11 +62,11 @@ export default function DeployedPolicies({ refreshTrigger }: Props) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-neutral-150">
-        <h2 className="text-[14px] font-semibold text-neutral-700">
+      <div className="px-4 py-3 border-b border-[#3A3936]">
+        <h2 className="text-[14px] font-semibold text-white">
           Deployed Policies
         </h2>
-        <p className="text-[11px] text-neutral-500 mt-0.5">
+        <p className="text-[11px] text-[#9B9A97] mt-0.5">
           {policies.length} {policies.length === 1 ? "policy" : "policies"}
         </p>
       </div>
@@ -77,7 +77,7 @@ export default function DeployedPolicies({ refreshTrigger }: Props) {
         )}
 
         {policies.length === 0 && !error && (
-          <p className="px-4 py-6 text-[13px] text-neutral-500 text-center">
+          <p className="px-4 py-6 text-[13px] text-[#9B9A97] text-center">
             No policies deployed yet. Select a KEV entry and deploy it.
           </p>
         )}
@@ -87,14 +87,14 @@ export default function DeployedPolicies({ refreshTrigger }: Props) {
           return (
             <div
               key={`${p.cve_id}-${p.deployed_at}`}
-              className="px-4 py-3 border-b border-neutral-100"
+              className="px-4 py-3 border-b border-[#3A3936]"
             >
               <div className="flex items-center justify-between">
-                <span className="text-[13px] font-medium text-neutral-700">
+                <span className="text-[13px] font-medium text-[#E9E9E7]">
                   {p.cve_id}
                 </span>
                 {p.dry_run ? (
-                  <span className="text-[10px] font-semibold uppercase text-neutral-500 bg-neutral-100 px-1.5 py-0.5 rounded">
+                  <span className="text-[10px] font-semibold uppercase text-[#9B9A97] bg-[#3A3936] px-1.5 py-0.5 rounded">
                     Dry run
                   </span>
                 ) : (
@@ -103,7 +103,7 @@ export default function DeployedPolicies({ refreshTrigger }: Props) {
                   </span>
                 )}
               </div>
-              <p className="text-[12px] text-neutral-500 mt-0.5 truncate">
+              <p className="text-[12px] text-[#9B9A97] mt-0.5 truncate">
                 {p.policy_name}
               </p>
 
@@ -123,8 +123,8 @@ export default function DeployedPolicies({ refreshTrigger }: Props) {
                               : "bg-neutral-300"
                         }`}
                       />
-                      <span className="text-neutral-700">{hr.hostname}</span>
-                      <span className="text-neutral-500">{hr.status}</span>
+                      <span className="text-[#E9E9E7]">{hr.hostname}</span>
+                      <span className="text-[#9B9A97]">{hr.status}</span>
                     </div>
                   ))}
                 </div>

@@ -16,7 +16,9 @@
 
 @layer components {
   .card {
-    @apply bg-white border border-neutral-150 rounded-lg;
+    @apply border rounded-lg;
+    background-color: #2F2E2B;
+    border-color: #3A3936;
   }
 
   .mapping-badge {
