@@ -39,3 +39,4 @@ Thumbs.db
 *.orig
 *~
 __pycache__/
+PENDING-COMMIT.md
